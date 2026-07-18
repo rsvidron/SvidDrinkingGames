@@ -13,6 +13,53 @@ import {
 } from "./engine";
 import type { GameSettings, GameState, PyramidOutcome } from "./types";
 
+interface RiverResult {
+  direction: "up" | "down";
+  drinkValue: number;
+  playerNames: string[];
+}
+
+function RiverResultModal({ result, onDismiss, buttonLabel }: {
+  result: RiverResult;
+  onDismiss: () => void;
+  buttonLabel: string;
+}) {
+  const isUp = result.direction === "up";
+  const color = isUp ? "var(--give)" : "var(--take)";
+  const hasNames = result.playerNames.length > 0;
+  const multi = result.playerNames.length > 1;
+  const drinkWord = `drink${result.drinkValue > 1 ? "s" : ""}`;
+
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-card" style={{ borderColor: color }}>
+        <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>{isUp ? "🍻" : "🥴"}</div>
+        {hasNames ? (
+          <>
+            <strong style={{ fontSize: "1.3rem", color }}>
+              {result.playerNames.join(", ")}
+            </strong>
+            <div style={{ fontSize: "1.1rem", marginTop: 8 }}>
+              {isUp
+                ? `give out ${result.drinkValue} ${drinkWord}${multi ? " each" : ""}!`
+                : `drink ${result.drinkValue}${multi ? " each" : ""}!`}
+            </div>
+          </>
+        ) : (
+          <strong style={{ fontSize: "1.2rem" }}>No matches — free round!</strong>
+        )}
+        <button
+          className="btn btn-primary btn-block"
+          style={{ marginTop: 20 }}
+          onClick={onDismiss}
+        >
+          {buttonLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface Props {
   settings: GameSettings;
   onRestart: () => void;
@@ -41,15 +88,15 @@ function OutcomeBanner({
   }
   if (outcome === "correct") {
     return (
-      <div className="card-panel text-center" style={{ borderColor: "var(--give)" }}>
-        <strong style={{ color: "var(--give)" }}>Correct!</strong>
+      <div className="card-panel text-center" style={{ borderColor: "var(--correct)" }}>
+        <strong style={{ color: "var(--correct)" }}>Correct!</strong>
         <div>Give out {drinkValue} drink{drinkValue > 1 ? "s" : ""}</div>
       </div>
     );
   }
   return (
-    <div className="card-panel text-center" style={{ borderColor: "var(--take)" }}>
-      <strong style={{ color: "var(--take)" }}>Wrong!</strong>
+    <div className="card-panel text-center" style={{ borderColor: "var(--wrong)" }}>
+      <strong style={{ color: "var(--wrong)" }}>Wrong!</strong>
       <div>Take {drinkValue} drink{drinkValue > 1 ? "s" : ""}</div>
     </div>
   );
@@ -58,6 +105,7 @@ function OutcomeBanner({
 export function UpDownRiverGame({ settings, onRestart }: Props) {
   const [state, setState] = useState<GameState>(() => initGame(settings));
   const [riverPicks, setRiverPicks] = useState<Set<number>>(new Set());
+  const [riverResult, setRiverResult] = useState<RiverResult | null>(null);
 
   function resolveStage(guess: string, outcome: PyramidOutcome) {
     setState((prev) => {
@@ -106,10 +154,14 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
   }
 
   function confirmRiverCard() {
+    const idx = state.currentRiverIndex;
+    const riverCard = state.riverCards[idx];
+    const matchedIds = Array.from(riverPicks);
+    const matchedNames = state.players
+      .filter((p) => matchedIds.includes(p.id))
+      .map((p) => p.name);
+
     setState((prev) => {
-      const idx = prev.currentRiverIndex;
-      const riverCard = prev.riverCards[idx];
-      const matchedIds = Array.from(riverPicks);
       const players = prev.players.map((p) => {
         if (!matchedIds.includes(p.id)) return p;
         if (riverCard.direction === "up") {
@@ -120,16 +172,28 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
       const riverCards = prev.riverCards.map((rc, i) =>
         i === idx ? { ...rc, matchedPlayerIds: matchedIds, resolved: true } : rc
       );
+      return { ...prev, players, riverCards };
+    });
+
+    setRiverResult({
+      direction: riverCard.direction,
+      drinkValue: riverCard.drinkValue,
+      playerNames: matchedNames,
+    });
+  }
+
+  function dismissRiverResult() {
+    setState((prev) => {
+      const idx = prev.currentRiverIndex;
       const isLast = idx === prev.riverCards.length - 1;
       return {
         ...prev,
-        players,
-        riverCards,
         currentRiverIndex: isLast ? idx : idx + 1,
         riverRevealed: false,
         phase: isLast ? "summary" : "river",
       };
     });
+    setRiverResult(null);
     setRiverPicks(new Set());
   }
 
@@ -148,11 +212,11 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
           </p>
         </div>
 
-        <div className="stack" style={{ alignItems: "center" }}>
+        <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
           {state.currentStageIndex > 0 && (
             <div className="row wrap" style={{ justifyContent: "center" }}>
               {player.pyramid.slice(0, state.currentStageIndex).map((s) => (
-                <PlayingCard key={s.id} card={s.card} size="sm" />
+                <PlayingCard key={s.id} card={s.card} size="md" />
               ))}
             </div>
           )}
@@ -292,7 +356,7 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
           </p>
         </div>
 
-        <div className="stack" style={{ alignItems: "center" }}>
+        <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
           <RiverCircle
             riverCards={state.riverCards}
             currentIndex={state.currentRiverIndex}
@@ -346,6 +410,14 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
             </>
           )}
         </div>
+
+        {riverResult && (
+          <RiverResultModal
+            result={riverResult}
+            onDismiss={dismissRiverResult}
+            buttonLabel={idx === state.riverCards.length - 1 ? "See Final Tally" : "Next Card"}
+          />
+        )}
       </div>
     );
   }
