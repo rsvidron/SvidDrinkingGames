@@ -16,6 +16,7 @@ export interface PyramidCardState {
   card: Card;
   guess?: string;
   outcome?: PyramidOutcome;
+  saying?: string;
 }
 
 export interface Player {

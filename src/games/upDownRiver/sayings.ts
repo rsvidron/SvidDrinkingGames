@@ -1,0 +1,36 @@
+export const DRINK_SAYINGS = [
+  "Bottoms up, you beautiful disaster.",
+  "Drink like your ex is watching.",
+  "Chug it, you absolute donkey.",
+  "That's what you get for being a smartass.",
+  "Cry about it, then drink about it.",
+  "Karma's a bitch and so are you.",
+  "Drink up, buttercup.",
+  "You built different — differently stupid.",
+  "That one's on you, dumbass.",
+  "Skol, you glorious idiot.",
+  "Drink it before you embarrass yourself further.",
+  "Guzzle it like your dignity already left.",
+  "That's a you problem now. Drink.",
+  "Down the hatch, you menace.",
+  "Take the L and take the shot.",
+  "Nobody's proud of you right now. Drink.",
+  "You absolute clown, bottoms up.",
+  "Drink it, you human red flag.",
+  "That was rough to watch. Drink it off.",
+  "Big oof energy. Drink.",
+  "Sip that shame away.",
+  "You did that to yourself. Drink.",
+  "Drink like you mean it, for once.",
+  "That's what happens to fools. Drink.",
+  "Congrats on the L, now chug.",
+  "Drink it, hot mess express.",
+  "That's a whole personality flaw. Drink.",
+  "You're this close to being cut off. Drink anyway.",
+  "Drink it before someone films this.",
+  "Zero shame left, so drink freely.",
+];
+
+export function randomSaying(): string {
+  return DRINK_SAYINGS[Math.floor(Math.random() * DRINK_SAYINGS.length)];
+}

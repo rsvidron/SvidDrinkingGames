@@ -11,12 +11,14 @@ import {
   resolveRedBlack,
   resolveSuit,
 } from "./engine";
+import { randomSaying } from "./sayings";
 import type { GameSettings, GameState, PyramidOutcome } from "./types";
 
 interface RiverResult {
   direction: "up" | "down";
   drinkValue: number;
   playerNames: string[];
+  saying?: string;
 }
 
 function RiverResultModal({ result, onDismiss, buttonLabel }: {
@@ -44,6 +46,11 @@ function RiverResultModal({ result, onDismiss, buttonLabel }: {
                 ? `give out ${result.drinkValue} ${drinkWord}${multi ? " each" : ""}!`
                 : `drink ${result.drinkValue}${multi ? " each" : ""}!`}
             </div>
+            {!isUp && result.saying && (
+              <div className="text-dim" style={{ marginTop: 10, fontStyle: "italic" }}>
+                "{result.saying}"
+              </div>
+            )}
           </>
         ) : (
           <strong style={{ fontSize: "1.2rem" }}>No matches — free round!</strong>
@@ -69,10 +76,12 @@ function OutcomeBanner({
   outcome,
   drinkValue,
   pushMeansDrink,
+  saying,
 }: {
   outcome: PyramidOutcome;
   drinkValue: number;
   pushMeansDrink: boolean;
+  saying?: string;
 }) {
   if (outcome === "push") {
     return (
@@ -83,6 +92,11 @@ function OutcomeBanner({
             ? `Same value — drink ${drinkValue} anyway.`
             : "Same value — no drinks this round."}
         </div>
+        {pushMeansDrink && saying && (
+          <div className="text-dim" style={{ marginTop: 10, fontStyle: "italic" }}>
+            "{saying}"
+          </div>
+        )}
       </div>
     );
   }
@@ -98,6 +112,11 @@ function OutcomeBanner({
     <div className="card-panel text-center" style={{ borderColor: "var(--wrong)" }}>
       <strong style={{ color: "var(--wrong)" }}>Wrong!</strong>
       <div>Take {drinkValue} drink{drinkValue > 1 ? "s" : ""}</div>
+      {saying && (
+        <div className="text-dim" style={{ marginTop: 10, fontStyle: "italic" }}>
+          "{saying}"
+        </div>
+      )}
     </div>
   );
 }
@@ -109,8 +128,10 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
   function resolveStage(guess: string, outcome: PyramidOutcome) {
     setState((prev) => {
       const player = prev.players[prev.currentPlayerIndex];
+      const isDrinkOutcome = outcome === "wrong" || (outcome === "push" && prev.pushMeansDrink);
+      const saying = isDrinkOutcome ? randomSaying() : undefined;
       const pyramid = player.pyramid.map((s, i) =>
-        i === prev.currentStageIndex ? { ...s, guess, outcome } : s
+        i === prev.currentStageIndex ? { ...s, guess, outcome, saying } : s
       );
       const stage = pyramid[prev.currentStageIndex];
       const players = applyOutcome(
@@ -168,6 +189,7 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
       direction: riverCard.direction,
       drinkValue: riverCard.drinkValue,
       playerNames: matched.map((p) => p.name),
+      saying: riverCard.direction === "down" && matched.length > 0 ? randomSaying() : undefined,
     });
   }
 
@@ -308,6 +330,7 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
                 outcome={stage.outcome}
                 drinkValue={stage.drinkValue}
                 pushMeansDrink={state.pushMeansDrink}
+                saying={stage.saying}
               />
               <button className="btn btn-primary btn-block" onClick={nextStage}>
                 {(() => {
