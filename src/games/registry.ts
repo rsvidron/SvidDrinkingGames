@@ -25,6 +25,14 @@ export const GAMES: GameDefinition[] = [
     available: true,
   },
   {
+    id: "fuck-the-dealer",
+    name: "Fuck the Dealer",
+    tagline: "Guess the rank, miss too many, become the new dealer",
+    minPlayers: 2,
+    path: "/games/fuck-the-dealer/setup",
+    available: true,
+  },
+  {
     id: "ride-the-bus",
     name: "Ride the Bus",
     tagline: "Coming soon",
