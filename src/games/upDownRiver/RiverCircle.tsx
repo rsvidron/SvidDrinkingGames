@@ -15,7 +15,7 @@ function DrinkBadge({ rc }: { rc: RiverCardResult }) {
         bottom: -6,
         right: -6,
         background: rc.direction === "up" ? "var(--give)" : "var(--take)",
-        color: rc.direction === "up" ? "#3a0000" : "#00203a",
+        color: rc.direction === "up" ? "#00203a" : "#3a0000",
         borderRadius: "50%",
         width: 24,
         height: 24,

@@ -8,8 +8,8 @@
   --text-dim: #9a9db0;
   --accent: #e63946;
   --accent-2: #2ec4b6;
-  --give: #ff6b6b;
-  --take: #4dabf7;
+  --give: #4dabf7;
+  --take: #ff6b6b;
   --gold: #ffd166;
   --correct: #3ddc84;
   --wrong: #ef4444;
@@ -111,13 +111,13 @@ button {
 .btn-give {
   background: var(--give);
   border-color: var(--give);
-  color: #3a0000;
+  color: #00203a;
 }
 
 .btn-take {
   background: var(--take);
   border-color: var(--take);
-  color: #00203a;
+  color: #3a0000;
 }
 
 .btn-ghost {

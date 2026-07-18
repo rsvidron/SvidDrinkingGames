@@ -147,7 +147,7 @@ export function UpDownRiverSetup({ onStart }: Props) {
                   padding: "8px 14px",
                   background: pushMeansDrink ? "var(--bg-elevated)" : "var(--take)",
                   borderColor: pushMeansDrink ? "var(--border)" : "var(--take)",
-                  color: pushMeansDrink ? "var(--text)" : "#00203a",
+                  color: pushMeansDrink ? "var(--text)" : "#3a0000",
                 }}
                 onClick={() => setPushMeansDrink(false)}
               >
@@ -160,7 +160,7 @@ export function UpDownRiverSetup({ onStart }: Props) {
                   padding: "8px 14px",
                   background: pushMeansDrink ? "var(--take)" : "var(--bg-elevated)",
                   borderColor: pushMeansDrink ? "var(--take)" : "var(--border)",
-                  color: pushMeansDrink ? "#00203a" : "var(--text)",
+                  color: pushMeansDrink ? "#3a0000" : "var(--text)",
                 }}
                 onClick={() => setPushMeansDrink(true)}
               >
