@@ -67,7 +67,7 @@ function RankKeypad({
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(7, 1fr)",
-        gap: 6,
+        gap: 4,
         width: "100%",
       }}
     >
@@ -78,9 +78,9 @@ function RankKeypad({
             key={r}
             className="btn"
             style={{
-              padding: "10px 0",
-              minHeight: 48,
-              fontSize: "1.1rem",
+              padding: "6px 0",
+              minHeight: 36,
+              fontSize: "0.95rem",
               opacity: enabled ? 1 : 0.25,
               cursor: enabled ? "pointer" : "not-allowed",
             }}
@@ -282,20 +282,27 @@ export function FuckTheDealerGame({ settings, onRestart }: Props) {
             Dealer: {dealer.name} &middot; Guesser: {guesser.name}
           </p>
         </div>
-        <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
-          <PlayingCard card={card} size="lg" />
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ transform: "scale(1.4)", transformOrigin: "center" }}>
+            <PlayingCard card={card} size="lg" />
+          </div>
+        </div>
+        <div className="stack" style={{ width: "100%", gap: 8 }}>
           {!isFirstGuess && (
             <div
-              className="card-panel text-center"
-              style={{ borderColor: hint === "higher" ? "var(--give)" : "var(--take)" }}
+              className="text-center"
+              style={{
+                borderTop: `2px solid ${hint === "higher" ? "var(--give)" : "var(--take)"}`,
+                borderBottom: `2px solid ${hint === "higher" ? "var(--give)" : "var(--take)"}`,
+                padding: "6px 0",
+              }}
             >
-              <strong style={{ color: hint === "higher" ? "var(--give)" : "var(--take)" }}>
-                Tell {guesser.name}: {hint === "higher" ? "Higher!" : "Lower!"}
+              <strong style={{ color: hint === "higher" ? "var(--give)" : "var(--take)", fontSize: "0.95rem" }}>
+                Tell {guesser.name}: {hint === "higher" ? "Higher!" : "Lower!"} (first guess {state.firstGuess})
               </strong>
-              <div className="text-dim">First guess was {state.firstGuess}</div>
             </div>
           )}
-          <div className="text-dim text-center">
+          <div className="text-dim text-center" style={{ fontSize: "0.8rem" }}>
             Tap the rank {guesser.name} guessed
           </div>
           <RankKeypad allowedRanks={allowedRanks} onPick={submitGuess} />
