@@ -87,7 +87,7 @@ export function KingsCupGame({ settings, onRestart }: Props) {
         patch.matePairs = [...prev.matePairs, [targetIds[0], targetIds[1]]];
       }
 
-      const gameOver = kingsDrawn >= 4;
+      const gameOver = prev.deck.length === 0;
       return {
         ...prev,
         ...patch,
@@ -124,7 +124,7 @@ export function KingsCupGame({ settings, onRestart }: Props) {
       <div className="screen">
         <div className="screen-header">
           <h1>Kings Cup Over</h1>
-          <p>All 4 Kings have been drawn. Cheers!</p>
+          <p>Deck empty. Cheers!</p>
         </div>
         <div className="spacer" />
         <button className="btn btn-primary btn-block" onClick={onRestart}>
@@ -140,7 +140,7 @@ export function KingsCupGame({ settings, onRestart }: Props) {
         <div className="screen-header">
           <h1>Draw a Card</h1>
           <p>
-            {state.deck.length} cards left &middot; {state.kingsDrawn}/4 Kings drawn
+            {state.deck.length} cards left &middot; {state.kingsDrawn}/4 Kings &middot; {state.matePairs.length}/4 Mates
           </p>
         </div>
         <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
