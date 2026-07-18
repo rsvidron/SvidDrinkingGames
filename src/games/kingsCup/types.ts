@@ -19,11 +19,10 @@ export interface KcSettings {
 export interface KcState {
   players: KcPlayer[];
   deck: Card[];
-  currentPlayerIndex: number;
   currentCard: Card | null;
   kingsDrawn: number;
   activeRule: string | null;
   questionMasterId: number | null;
-  matePair: [number, number] | null;
+  matePairs: Array<[number, number]>;
   phase: KcPhase;
 }

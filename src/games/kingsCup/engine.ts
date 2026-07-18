@@ -12,20 +12,20 @@ export function initKingsCup(settings: KcSettings): KcState {
   return {
     players,
     deck: shuffle(createDeck()),
-    currentPlayerIndex: 0,
     currentCard: null,
     kingsDrawn: 0,
     activeRule: null,
     questionMasterId: null,
-    matePair: null,
+    matePairs: [],
     phase: "draw",
   };
 }
 
-export function mateOf(state: KcState, playerId: number): number | null {
-  if (!state.matePair) return null;
-  const [a, b] = state.matePair;
-  if (a === playerId) return b;
-  if (b === playerId) return a;
-  return null;
+export function matesOf(state: KcState, playerId: number): number[] {
+  const result: number[] = [];
+  for (const [a, b] of state.matePairs) {
+    if (a === playerId) result.push(b);
+    else if (b === playerId) result.push(a);
+  }
+  return result;
 }

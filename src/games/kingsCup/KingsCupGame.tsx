@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PlayingCard } from "../../components/PlayingCard";
-import { initKingsCup, mateOf } from "./engine";
+import { initKingsCup } from "./engine";
 import { KING_RULE_PRESETS, RANK_RULES } from "./rankRules";
 import type { KcSettings, KcState } from "./types";
 
@@ -11,11 +11,10 @@ interface Props {
 
 function StatusBanner({ state }: { state: KcState }) {
   const qm = state.questionMasterId != null ? state.players.find((p) => p.id === state.questionMasterId) : null;
-  const mates = state.matePair
-    ? state.matePair.map((id) => state.players.find((p) => p.id === id)?.name).filter(Boolean)
-    : null;
+  const nameOf = (id: number) => state.players.find((p) => p.id === id)?.name ?? "?";
+  const matePairNames = state.matePairs.map(([a, b]) => `${nameOf(a)} & ${nameOf(b)}`);
 
-  if (!state.activeRule && !qm && !mates) return null;
+  if (!state.activeRule && !qm && matePairNames.length === 0) return null;
 
   return (
     <div className="stack" style={{ width: "100%", marginBottom: 16 }}>
@@ -35,12 +34,16 @@ function StatusBanner({ state }: { state: KcState }) {
           <strong>{qm.name}</strong>
         </div>
       )}
-      {mates && (
+      {matePairNames.length > 0 && (
         <div className="card-panel" style={{ borderColor: "var(--give)" }}>
           <div className="text-dim" style={{ fontSize: "0.75rem", letterSpacing: 1 }}>
             💞 MATES
           </div>
-          <strong>{mates.join(" & ")}</strong>
+          <div className="stack" style={{ gap: 4 }}>
+            {matePairNames.map((pair, i) => (
+              <strong key={i}>{pair}</strong>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -49,27 +52,18 @@ function StatusBanner({ state }: { state: KcState }) {
 
 export function KingsCupGame({ settings, onRestart }: Props) {
   const [state, setState] = useState<KcState>(() => initKingsCup(settings));
-  const [targetId, setTargetId] = useState<number | null>(null);
+  const [targetIds, setTargetIds] = useState<number[]>([]);
   const [textInput, setTextInput] = useState("");
   const [kingRuleDraft, setKingRuleDraft] = useState<string | null>(null);
   const [kingCustomText, setKingCustomText] = useState("");
-
-  const drawer = state.players[state.currentPlayerIndex];
 
   function drawCard() {
     setState((prev) => {
       if (prev.deck.length === 0) return { ...prev, phase: "gameover" };
       const [card, ...rest] = prev.deck;
-      const isQueen = card.rank === "Q";
-      return {
-        ...prev,
-        deck: rest,
-        currentCard: card,
-        phase: "resolve",
-        questionMasterId: isQueen ? prev.players[prev.currentPlayerIndex].id : prev.questionMasterId,
-      };
+      return { ...prev, deck: rest, currentCard: card, phase: "resolve" };
     });
-    setTargetId(null);
+    setTargetIds([]);
     setTextInput("");
     setKingRuleDraft(null);
     setKingCustomText("");
@@ -79,29 +73,36 @@ export function KingsCupGame({ settings, onRestart }: Props) {
     setState((prev) => {
       const isKing = prev.currentCard?.rank === "K";
       const isJack = prev.currentCard?.rank === "J";
+      const isQueen = prev.currentCard?.rank === "Q";
       const kingsDrawn = isKing ? prev.kingsDrawn + 1 : prev.kingsDrawn;
-      const players = isJack
-        ? prev.players.map((p) => (p.fingers <= 0 ? { ...p, fingers: 3 } : p))
-        : prev.players;
+
+      let players = prev.players;
+      if (isJack) {
+        players = players.map((p) => (p.fingers <= 0 ? { ...p, fingers: 3 } : p));
+      }
+
+      const patch: Partial<KcState> = { players, kingsDrawn };
+      if (isQueen && targetIds.length === 1) patch.questionMasterId = targetIds[0];
+      if (prev.currentCard?.rank === "8" && targetIds.length === 2) {
+        patch.matePairs = [...prev.matePairs, [targetIds[0], targetIds[1]]];
+      }
+
       const gameOver = kingsDrawn >= 4;
       return {
         ...prev,
-        players,
-        currentPlayerIndex: (prev.currentPlayerIndex + 1) % prev.players.length,
+        ...patch,
         currentCard: null,
-        kingsDrawn,
         phase: gameOver ? "gameover" : "draw",
       };
     });
   }
 
-  function pickYouTarget(id: number) {
-    setTargetId(id);
-  }
-
-  function pickMate(id: number) {
-    setTargetId(id);
-    setState((prev) => ({ ...prev, matePair: [prev.players[prev.currentPlayerIndex].id, id] }));
+  function togglePick(id: number, max: number) {
+    setTargetIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= max) return [...prev.slice(1), id];
+      return [...prev, id];
+    });
   }
 
   function adjustFingers(playerId: number, delta: number) {
@@ -137,7 +138,7 @@ export function KingsCupGame({ settings, onRestart }: Props) {
     return (
       <div className="screen">
         <div className="screen-header">
-          <h1>{drawer.name}'s Turn</h1>
+          <h1>Draw a Card</h1>
           <p>
             {state.deck.length} cards left &middot; {state.kingsDrawn}/4 Kings drawn
           </p>
@@ -155,51 +156,47 @@ export function KingsCupGame({ settings, onRestart }: Props) {
     );
   }
 
-  // resolve phase
   const card = state.currentCard!;
   const rule = RANK_RULES[card.rank];
   const guys = state.players.filter((p) => p.gender === "guy");
   const girls = state.players.filter((p) => p.gender === "girl");
-  const otherPlayers = state.players.filter((p) => p.id !== drawer.id);
+
+  function playerButton(id: number, opts: { max: number; color?: string }) {
+    const p = state.players.find((pl) => pl.id === id)!;
+    const picked = targetIds.includes(id);
+    return (
+      <button
+        key={id}
+        className="btn"
+        style={{
+          background: picked ? opts.color || "var(--take)" : "var(--bg-elevated)",
+          color: picked ? "#3a0000" : "var(--text)",
+        }}
+        onClick={() => togglePick(id, opts.max)}
+      >
+        {p.name}
+      </button>
+    );
+  }
 
   function renderResolution() {
     switch (card.rank) {
       case "2": {
-        const picked = targetId != null ? state.players.find((p) => p.id === targetId) : null;
-        const pickedMate = targetId != null ? mateOf(state, targetId) : null;
-        const mateName = pickedMate != null ? state.players.find((p) => p.id === pickedMate)?.name : null;
         return (
           <div className="stack" style={{ width: "100%" }}>
-            {!picked ? (
-              <>
-                <div className="text-dim text-center">Who drinks?</div>
-                <div className="row wrap" style={{ justifyContent: "center" }}>
-                  {state.players.map((p) => (
-                    <button key={p.id} className="btn" onClick={() => pickYouTarget(p.id)}>
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="card-panel text-center" style={{ borderColor: "var(--take)" }}>
-                <strong style={{ color: "var(--take)" }}>{picked.name} drinks!</strong>
-                {mateName && <div className="text-dim">Their mate {mateName} drinks too!</div>}
-              </div>
-            )}
+            <div className="text-dim text-center">Who drinks?</div>
+            <div className="row wrap" style={{ justifyContent: "center" }}>
+              {state.players.map((p) => playerButton(p.id, { max: 1 }))}
+            </div>
           </div>
         );
       }
-      case "3": {
-        const drawerMate = mateOf(state, drawer.id);
-        const mateName = drawerMate != null ? state.players.find((p) => p.id === drawerMate)?.name : null;
+      case "3":
         return (
           <div className="card-panel text-center" style={{ borderColor: "var(--take)" }}>
-            <strong style={{ color: "var(--take)" }}>{drawer.name} drinks!</strong>
-            {mateName && <div className="text-dim">Their mate {mateName} drinks too!</div>}
+            <strong style={{ color: "var(--take)" }}>Whoever drew — drink!</strong>
           </div>
         );
-      }
       case "5":
         return (
           <div className="card-panel text-center" style={{ borderColor: "var(--take)" }}>
@@ -218,32 +215,17 @@ export function KingsCupGame({ settings, onRestart }: Props) {
             <strong style={{ color: "var(--take)" }}>No chicks here — Social! Everyone drinks!</strong>
           </div>
         );
-      case "8": {
-        const mate = targetId != null ? state.players.find((p) => p.id === targetId) : null;
+      case "8":
         return (
           <div className="stack" style={{ width: "100%" }}>
-            {!mate ? (
-              <>
-                <div className="text-dim text-center">{drawer.name}, pick your mate</div>
-                <div className="row wrap" style={{ justifyContent: "center" }}>
-                  {otherPlayers.map((p) => (
-                    <button key={p.id} className="btn" onClick={() => pickMate(p.id)}>
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="card-panel text-center" style={{ borderColor: "var(--give)" }}>
-                <strong style={{ color: "var(--give)" }}>
-                  {drawer.name} &amp; {mate.name} are mates!
-                </strong>
-                <div className="text-dim">Whenever either drinks, they both drink.</div>
-              </div>
-            )}
+            <div className="text-dim text-center">
+              Pick two mates ({targetIds.length}/2)
+            </div>
+            <div className="row wrap" style={{ justifyContent: "center" }}>
+              {state.players.map((p) => playerButton(p.id, { max: 2, color: "var(--give)" }))}
+            </div>
           </div>
         );
-      }
       case "9":
       case "10": {
         const label = card.rank === "9" ? "Rhyming word" : "Category";
@@ -297,10 +279,10 @@ export function KingsCupGame({ settings, onRestart }: Props) {
             </div>
           </div>
         );
-      case "K": {
+      case "K":
         return (
           <div className="stack" style={{ width: "100%" }}>
-            <div className="text-dim text-center">{drawer.name}, pick a rule</div>
+            <div className="text-dim text-center">Pick a rule</div>
             <div className="row wrap" style={{ justifyContent: "center" }}>
               {KING_RULE_PRESETS.map((preset) => (
                 <button
@@ -348,12 +330,13 @@ export function KingsCupGame({ settings, onRestart }: Props) {
             )}
           </div>
         );
-      }
       case "Q":
         return (
-          <div className="card-panel text-center" style={{ borderColor: "var(--accent-2)" }}>
-            <strong>{drawer.name} is the Question Master!</strong>
-            <div className="text-dim">Answer their questions and you drink — reply with a question instead.</div>
+          <div className="stack" style={{ width: "100%" }}>
+            <div className="text-dim text-center">Who is the new Question Master?</div>
+            <div className="row wrap" style={{ justifyContent: "center" }}>
+              {state.players.map((p) => playerButton(p.id, { max: 1, color: "var(--accent-2)" }))}
+            </div>
           </div>
         );
       default:
@@ -362,8 +345,9 @@ export function KingsCupGame({ settings, onRestart }: Props) {
   }
 
   const canContinue = (() => {
-    if (card.rank === "2") return targetId != null;
-    if (card.rank === "8") return targetId != null;
+    if (card.rank === "2") return targetIds.length === 1;
+    if (card.rank === "8") return targetIds.length === 2;
+    if (card.rank === "Q") return targetIds.length === 1;
     if (card.rank === "K") return !!kingRuleDraft;
     return true;
   })();
@@ -379,7 +363,7 @@ export function KingsCupGame({ settings, onRestart }: Props) {
         <PlayingCard card={card} size="lg" />
         {renderResolution()}
         <button className="btn btn-primary btn-block" disabled={!canContinue} onClick={continueTurn}>
-          Next Turn
+          Next Card
         </button>
       </div>
     </div>
