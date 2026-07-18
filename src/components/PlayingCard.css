@@ -1,0 +1,76 @@
+.playing-card {
+  position: relative;
+  background: var(--bg-card-face);
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.playing-card--sm {
+  width: 44px;
+  height: 62px;
+  font-size: 0.85rem;
+}
+
+.playing-card--md {
+  width: 72px;
+  height: 100px;
+  font-size: 1.4rem;
+}
+
+.playing-card--lg {
+  width: 104px;
+  height: 146px;
+  font-size: 2rem;
+}
+
+.playing-card--red {
+  color: #c1121f;
+}
+
+.playing-card--black {
+  color: #14151a;
+}
+
+.playing-card__suit {
+  font-size: 1.6em;
+}
+
+.playing-card__rank {
+  position: absolute;
+  font-size: 0.5em;
+  line-height: 1;
+}
+
+.playing-card__rank--top {
+  top: 8%;
+  left: 10%;
+}
+
+.playing-card__rank--bottom {
+  bottom: 8%;
+  right: 10%;
+  transform: rotate(180deg);
+}
+
+.playing-card--back {
+  background: linear-gradient(135deg, #7b2ff7, #14151a);
+  border: 2px solid #2c2f3a;
+}
+
+.playing-card__back-pattern {
+  width: 70%;
+  height: 70%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+}
+
+.playing-card--highlight {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
