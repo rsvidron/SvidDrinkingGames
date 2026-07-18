@@ -38,7 +38,7 @@ function RiverResultModal({ result, onDismiss, buttonLabel }: {
         <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>{isUp ? "🍻" : "🥴"}</div>
         {hasNames ? (
           <>
-            <strong style={{ fontSize: "1.3rem", color }}>
+            <strong style={{ fontSize: "2.1rem", lineHeight: 1.2, color }}>
               {result.playerNames.join(", ")}
             </strong>
             <div style={{ fontSize: "1.1rem", marginTop: 8 }}>
