@@ -19,10 +19,10 @@ export const GAMES: GameDefinition[] = [
   {
     id: "kings-cup",
     name: "Kings Cup",
-    tagline: "Coming soon",
+    tagline: "Draw cards, make rules, don't be the last King",
     minPlayers: 2,
     path: "/games/kings-cup/setup",
-    available: false,
+    available: true,
   },
   {
     id: "ride-the-bus",
