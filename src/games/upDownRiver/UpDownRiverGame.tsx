@@ -349,6 +349,7 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
             riverCards={state.riverCards}
             currentIndex={state.currentRiverIndex}
             revealed={state.riverRevealed}
+            onFlip={revealRiverCard}
           />
 
           {!state.riverRevealed && (

@@ -5,6 +5,7 @@ interface Props {
   riverCards: RiverCardResult[];
   currentIndex: number;
   revealed: boolean;
+  onFlip: () => void;
 }
 
 function DrinkBadge({ rc }: { rc: RiverCardResult }) {
@@ -35,15 +36,21 @@ function RiverSlot({
   rc,
   isCurrent,
   revealed,
+  onFlip,
 }: {
   rc: RiverCardResult;
   isCurrent: boolean;
   revealed: boolean;
+  onFlip: () => void;
 }) {
   const showFace = rc.resolved || (isCurrent && revealed);
+  const clickable = isCurrent && !revealed;
 
   return (
-    <div style={{ position: "relative" }}>
+    <div
+      style={{ position: "relative", cursor: clickable ? "pointer" : "default" }}
+      onClick={clickable ? onFlip : undefined}
+    >
       <PlayingCard
         card={showFace ? rc.card : undefined}
         faceDown={!showFace}
@@ -59,12 +66,15 @@ function HorizontalRiverSlot({
   rc,
   isCurrent,
   revealed,
+  onFlip,
 }: {
   rc: RiverCardResult;
   isCurrent: boolean;
   revealed: boolean;
+  onFlip: () => void;
 }) {
   const showFace = rc.resolved || (isCurrent && revealed);
+  const clickable = isCurrent && !revealed;
 
   return (
     <div
@@ -75,7 +85,9 @@ function HorizontalRiverSlot({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        cursor: clickable ? "pointer" : "default",
       }}
+      onClick={clickable ? onFlip : undefined}
     >
       <div style={{ transform: "rotate(90deg)" }}>
         <PlayingCard
@@ -90,7 +102,7 @@ function HorizontalRiverSlot({
   );
 }
 
-export function RiverCircle({ riverCards, currentIndex, revealed }: Props) {
+export function RiverCircle({ riverCards, currentIndex, revealed, onFlip }: Props) {
   const upCards = riverCards.filter((c) => c.direction === "up");
   const downCards = riverCards.filter((c) => c.direction === "down");
 
@@ -120,7 +132,12 @@ export function RiverCircle({ riverCards, currentIndex, revealed }: Props) {
       }}
     >
       {topCap && (
-        <HorizontalRiverSlot rc={topCap} isCurrent={indexOf(topCap) === currentIndex} revealed={revealed} />
+        <HorizontalRiverSlot
+          rc={topCap}
+          isCurrent={indexOf(topCap) === currentIndex}
+          revealed={revealed}
+          onFlip={onFlip}
+        />
       )}
       <div style={{ color: "var(--give)", fontWeight: 700, fontSize: "0.8rem", letterSpacing: 1 }}>
         GIVE
@@ -137,12 +154,24 @@ export function RiverCircle({ riverCards, currentIndex, revealed }: Props) {
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 20, justifyContent: "space-evenly" }}>
           {leftColumn.map((rc) => (
-            <RiverSlot key={rc.card.id} rc={rc} isCurrent={indexOf(rc) === currentIndex} revealed={revealed} />
+            <RiverSlot
+              key={rc.card.id}
+              rc={rc}
+              isCurrent={indexOf(rc) === currentIndex}
+              revealed={revealed}
+              onFlip={onFlip}
+            />
           ))}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 20, justifyContent: "space-evenly" }}>
           {rightColumn.map((rc) => (
-            <RiverSlot key={rc.card.id} rc={rc} isCurrent={indexOf(rc) === currentIndex} revealed={revealed} />
+            <RiverSlot
+              key={rc.card.id}
+              rc={rc}
+              isCurrent={indexOf(rc) === currentIndex}
+              revealed={revealed}
+              onFlip={onFlip}
+            />
           ))}
         </div>
       </div>
@@ -155,6 +184,7 @@ export function RiverCircle({ riverCards, currentIndex, revealed }: Props) {
           rc={bottomCap}
           isCurrent={indexOf(bottomCap) === currentIndex}
           revealed={revealed}
+          onFlip={onFlip}
         />
       )}
     </div>
