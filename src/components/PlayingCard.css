@@ -12,21 +12,21 @@
 }
 
 .playing-card--sm {
-  width: 44px;
-  height: 62px;
-  font-size: 0.85rem;
+  width: 56px;
+  height: 78px;
+  font-size: 1.05rem;
 }
 
 .playing-card--md {
-  width: 72px;
-  height: 100px;
-  font-size: 1.4rem;
+  width: 92px;
+  height: 128px;
+  font-size: 1.75rem;
 }
 
 .playing-card--lg {
-  width: 104px;
-  height: 146px;
-  font-size: 2rem;
+  width: 140px;
+  height: 196px;
+  font-size: 2.6rem;
 }
 
 .playing-card--red {
