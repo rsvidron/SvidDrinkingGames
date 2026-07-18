@@ -8,10 +8,15 @@ interface Props {
 }
 
 const DEFAULT_PLAYER_COUNT = 4;
+const DEFAULT_NAMES = ["Bobby", "Pookie", "Miller", "Chewy"];
+
+function defaultNameFor(index: number) {
+  return DEFAULT_NAMES[index] ?? `Player ${index + 1}`;
+}
 
 export function UpDownRiverSetup({ onStart }: Props) {
   const [names, setNames] = useState<string[]>(
-    Array.from({ length: DEFAULT_PLAYER_COUNT }, (_, i) => `Player ${i + 1}`)
+    Array.from({ length: DEFAULT_PLAYER_COUNT }, (_, i) => defaultNameFor(i))
   );
   const [riverCount, setRiverCount] = useState(8);
   const [pushMeansDrink, setPushMeansDrink] = useState(true);
@@ -23,7 +28,7 @@ export function UpDownRiverSetup({ onStart }: Props) {
     const clamped = Math.max(2, Math.min(12, count));
     setNames((prev) => {
       const next = [...prev];
-      while (next.length < clamped) next.push(`Player ${next.length + 1}`);
+      while (next.length < clamped) next.push(defaultNameFor(next.length));
       while (next.length > clamped) next.pop();
       return next;
     });
