@@ -104,7 +104,6 @@ function OutcomeBanner({
 
 export function UpDownRiverGame({ settings, onRestart }: Props) {
   const [state, setState] = useState<GameState>(() => initGame(settings));
-  const [riverPicks, setRiverPicks] = useState<Set<number>>(new Set());
   const [riverResult, setRiverResult] = useState<RiverResult | null>(null);
 
   function resolveStage(guess: string, outcome: PyramidOutcome) {
@@ -140,26 +139,16 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
     });
   }
 
-  function flipRiverCard() {
-    setState((prev) => ({ ...prev, riverRevealed: true }));
-  }
-
-  function togglePlayerMatch(playerId: number) {
-    setRiverPicks((prev) => {
-      const next = new Set(prev);
-      if (next.has(playerId)) next.delete(playerId);
-      else next.add(playerId);
-      return next;
-    });
-  }
-
-  function confirmRiverCard() {
+  function revealRiverCard() {
     const idx = state.currentRiverIndex;
     const riverCard = state.riverCards[idx];
-    const matchedIds = Array.from(riverPicks);
-    const matchedNames = state.players
-      .filter((p) => matchedIds.includes(p.id))
-      .map((p) => p.name);
+    const matched = state.players.filter((p) =>
+      handHasRank(
+        p.pyramid.map((s) => s.card),
+        riverCard.card.rank
+      )
+    );
+    const matchedIds = matched.map((p) => p.id);
 
     setState((prev) => {
       const players = prev.players.map((p) => {
@@ -172,13 +161,13 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
       const riverCards = prev.riverCards.map((rc, i) =>
         i === idx ? { ...rc, matchedPlayerIds: matchedIds, resolved: true } : rc
       );
-      return { ...prev, players, riverCards };
+      return { ...prev, players, riverCards, riverRevealed: true };
     });
 
     setRiverResult({
       direction: riverCard.direction,
       drinkValue: riverCard.drinkValue,
-      playerNames: matchedNames,
+      playerNames: matched.map((p) => p.name),
     });
   }
 
@@ -194,7 +183,6 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
       };
     });
     setRiverResult(null);
-    setRiverPicks(new Set());
   }
 
   if (state.phase === "pyramid") {
@@ -364,50 +352,9 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
           />
 
           {!state.riverRevealed && (
-            <button className="btn btn-primary btn-block" onClick={flipRiverCard}>
+            <button className="btn btn-primary btn-block" onClick={revealRiverCard}>
               Flip Card
             </button>
-          )}
-
-          {state.riverRevealed && (
-            <>
-              <div className="text-dim text-center">
-                Tap everyone who has a {riverCard.card.rank} among their pyramid cards
-              </div>
-              <div className="row wrap" style={{ justifyContent: "center" }}>
-                {state.players.map((p) => {
-                  const has = handHasRank(
-                    p.pyramid.map((s) => s.card),
-                    riverCard.card.rank
-                  );
-                  const picked = riverPicks.has(p.id);
-                  return (
-                    <button
-                      key={p.id}
-                      className="btn"
-                      style={{
-                        background: picked
-                          ? isUp
-                            ? "var(--give)"
-                            : "var(--take)"
-                          : "var(--bg-elevated)",
-                        color: picked ? (isUp ? "#3a0000" : "#00203a") : "var(--text)",
-                        opacity: has ? 1 : 0.55,
-                      }}
-                      onClick={() => togglePlayerMatch(p.id)}
-                    >
-                      {p.name}
-                    </button>
-                  );
-                })}
-              </div>
-              <button
-                className={`btn btn-block ${isUp ? "btn-give" : "btn-take"}`}
-                onClick={confirmRiverCard}
-              >
-                Confirm & Next Card
-              </button>
-            </>
           )}
         </div>
 
