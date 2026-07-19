@@ -1,7 +1,8 @@
 import { useParams } from "react-router-dom";
 import { PlayingCard } from "../../components/PlayingCard";
-import { suitSymbol } from "../../lib/deck";
+import { RANKS, suitSymbol, type Rank } from "../../lib/deck";
 import { useViewerRoom } from "../../lib/sharedRoom";
+import type { FtdHistoryEntry } from "./types";
 import type { FtdSharedState } from "./sharedState";
 
 function StatusMessage({ children }: { children: React.ReactNode }) {
@@ -19,47 +20,126 @@ function StatusMessage({ children }: { children: React.ReactNode }) {
   );
 }
 
-function HistoryGrid({ history }: { history: FtdSharedState["history"] }) {
-  if (history.length === 0) {
-    return (
-      <div className="card-panel text-center text-dim" style={{ width: "100%" }}>
-        No cards played yet — waiting on the dealer to start.
-      </div>
-    );
-  }
+const CARD_W = 56;
+const CARD_H = 78;
+const STACK_OFFSET = 22;
+const MAX_STACK_HEIGHT = CARD_H + 3 * STACK_OFFSET; // slot for all 4 cards
+
+function RankColumn({
+  rank,
+  entries,
+}: {
+  rank: Rank;
+  entries: FtdHistoryEntry[];
+}) {
+  const count = entries.length;
+  const exhausted = count >= 4;
+
   return (
     <div
       style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))",
-        gap: 12,
-        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 6,
+        flexShrink: 0,
       }}
     >
-      {history.map((h, i) => {
-        const color = h.outcome === "missed" ? "var(--take)" : "var(--correct)";
-        return (
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: "1.05rem",
+          color: exhausted ? "var(--text-dim)" : "var(--text)",
+          textDecoration: exhausted ? "line-through" : "none",
+          minWidth: CARD_W,
+          textAlign: "center",
+        }}
+      >
+        {rank}
+      </div>
+      <div
+        style={{
+          position: "relative",
+          width: CARD_W,
+          height: MAX_STACK_HEIGHT,
+        }}
+      >
+        {[0, 1, 2, 3].map((slot) => (
           <div
-            key={i}
+            key={`slot-${slot}`}
             style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 6,
+              position: "absolute",
+              top: slot * STACK_OFFSET,
+              left: 0,
+              width: CARD_W,
+              height: CARD_H,
+              border: "1px dashed var(--border)",
+              borderRadius: 10,
+              opacity: 0.35,
             }}
-          >
-            <PlayingCard card={h.card} size="md" />
-            <div style={{ fontSize: "0.75rem", textAlign: "center", color, lineHeight: 1.2 }}>
-              {h.outcome === "correct1" && `${h.dealerName} -10s`}
-              {h.outcome === "correct2" && `${h.dealerName} -5s`}
-              {h.outcome === "missed" && `${h.guesserName} -${h.seconds}s`}
+          />
+        ))}
+        {entries.map((h, i) => {
+          const isCorrect = h.outcome === "correct1" || h.outcome === "correct2";
+          const outline = isCorrect ? "var(--correct)" : "var(--take)";
+          return (
+            <div
+              key={i}
+              style={{
+                position: "absolute",
+                top: i * STACK_OFFSET,
+                left: 0,
+                outline: `2px solid ${outline}`,
+                outlineOffset: -1,
+                borderRadius: 10,
+              }}
+            >
+              <PlayingCard card={h.card} size="sm" />
             </div>
-            <div className="text-dim" style={{ fontSize: "0.65rem" }}>
-              {h.guesses.join(", ")}
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+      <div style={{ fontSize: "0.7rem", color: exhausted ? "var(--text-dim)" : "var(--text)" }}>
+        {count}/4
+      </div>
+    </div>
+  );
+}
+
+function HistoryGrid({ history }: { history: FtdSharedState["history"] }) {
+  const byRank: Record<Rank, FtdHistoryEntry[]> = {} as Record<Rank, FtdHistoryEntry[]>;
+  for (const r of RANKS) byRank[r] = [];
+  for (const h of history) byRank[h.card.rank].push(h);
+
+  return (
+    <div style={{ width: "100%" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 4,
+          overflowX: "auto",
+          padding: "8px 4px",
+          // `safe center` centers when content fits, otherwise falls back to
+          // flex-start so nothing gets clipped off the leading edge.
+          justifyContent: "safe center",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        {RANKS.map((r) => (
+          <RankColumn key={r} rank={r} entries={byRank[r]} />
+        ))}
+      </div>
+      <div
+        className="text-dim text-center"
+        style={{ fontSize: "0.7rem", marginTop: 8, display: "flex", justifyContent: "center", gap: 16 }}
+      >
+        <span>
+          <span style={{ color: "var(--correct)" }}>■</span> dealer drank
+        </span>
+        <span>
+          <span style={{ color: "var(--take)" }}>■</span> guesser drank
+        </span>
+      </div>
     </div>
   );
 }
@@ -101,73 +181,98 @@ export function FuckTheDealerViewer() {
   }
 
   return (
-    <div className="screen">
-      <div className="screen-header">
-        <h1>Fuck the Dealer</h1>
-        <p>
-          Dealer: <strong>{state.dealerName}</strong> &middot; Guesser:{" "}
-          <strong>{state.guesserName}</strong>
-        </p>
-        <p className="text-dim" style={{ fontSize: "0.85rem" }}>
-          {state.cardsLeft} cards left &middot; {state.consecutiveFails}/3 fails
-        </p>
-      </div>
-
-      {state.dealerJustChanged && (
-        <div className="card-panel text-center" style={{ borderColor: "var(--gold)", marginBottom: 12 }}>
-          <strong style={{ color: "var(--gold)" }}>New Dealer: {state.dealerName}</strong>
-          <div className="text-dim">Deck has passed. 3 fails reset.</div>
-        </div>
-      )}
-
-      {state.phase === "peek" && (
-        <div className="card-panel text-center" style={{ borderColor: "var(--accent-2)", marginBottom: 12 }}>
-          <strong>Guessing in progress</strong>
-          <div className="text-dim">
-            {state.guesserName} is guessing. The dealer sees the card.
+    <div
+      className="screen"
+      style={{
+        maxWidth: "none",
+        padding: "8px 12px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          marginBottom: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: "0.75rem", color: "var(--text-dim)", letterSpacing: 1 }}>
+            FUCK THE DEALER
+          </div>
+          <div style={{ fontSize: "1.05rem" }}>
+            Dealer: <strong>{state.dealerName}</strong> &middot; Guesser:{" "}
+            <strong>{state.guesserName}</strong>
           </div>
         </div>
-      )}
+        <div style={{ display: "flex", gap: 12, alignItems: "center", fontSize: "0.85rem" }}>
+          <span className="text-dim">{state.cardsLeft} left</span>
+          <span
+            style={{
+              color: state.consecutiveFails >= 2 ? "var(--take)" : "var(--text-dim)",
+              fontWeight: state.consecutiveFails >= 2 ? 700 : 400,
+            }}
+          >
+            {state.consecutiveFails}/3 fails
+          </span>
+          {state.phase === "peek" && (
+            <span style={{ color: "var(--accent-2)", fontWeight: 700 }}>
+              🎴 guessing…
+            </span>
+          )}
+          {state.dealerJustChanged && (
+            <span style={{ color: "var(--gold)", fontWeight: 700 }}>
+              👑 new dealer
+            </span>
+          )}
+        </div>
+      </div>
 
       {state.currentCardReveal && (
         <div
-          className="card-panel text-center"
+          className="text-center"
           style={{
-            borderColor:
+            borderTop: `2px solid ${
               state.currentCardReveal.outcome === "missed"
                 ? "var(--take)"
-                : "var(--correct)",
-            marginBottom: 12,
+                : "var(--correct)"
+            }`,
+            borderBottom: `2px solid ${
+              state.currentCardReveal.outcome === "missed"
+                ? "var(--take)"
+                : "var(--correct)"
+            }`,
+            padding: "4px 0",
+            marginBottom: 8,
+            fontSize: "0.95rem",
           }}
         >
-          <div className="text-dim" style={{ fontSize: "0.75rem", letterSpacing: 1 }}>
-            LAST CARD
-          </div>
-          <strong style={{ fontSize: "1.4rem" }}>
-            {state.currentCardReveal.card.rank}
-            {suitSymbol(state.currentCardReveal.card.suit)} &middot; guesses:{" "}
-            {state.currentCardReveal.guesses.join(", ")}
+          <strong>
+            Last: {state.currentCardReveal.card.rank}
+            {suitSymbol(state.currentCardReveal.card.suit)} &middot; guessed{" "}
+            {state.currentCardReveal.guesses.join(", ")} &middot;{" "}
+            <span
+              style={{
+                color:
+                  state.currentCardReveal.outcome === "missed"
+                    ? "var(--take)"
+                    : "var(--correct)",
+              }}
+            >
+              {state.currentCardReveal.outcome === "correct1" &&
+                `${state.currentCardReveal.dealerName} drank 10s`}
+              {state.currentCardReveal.outcome === "correct2" &&
+                `${state.currentCardReveal.dealerName} drank 5s`}
+              {state.currentCardReveal.outcome === "missed" &&
+                `${state.currentCardReveal.guesserName} drank ${state.currentCardReveal.seconds}s`}
+            </span>
           </strong>
-          <div
-            style={{
-              color:
-                state.currentCardReveal.outcome === "missed"
-                  ? "var(--take)"
-                  : "var(--correct)",
-              marginTop: 4,
-            }}
-          >
-            {state.currentCardReveal.outcome === "correct1" &&
-              `${state.currentCardReveal.dealerName} drinks 10 sec`}
-            {state.currentCardReveal.outcome === "correct2" &&
-              `${state.currentCardReveal.dealerName} drinks 5 sec`}
-            {state.currentCardReveal.outcome === "missed" &&
-              `${state.currentCardReveal.guesserName} drinks ${state.currentCardReveal.seconds} sec`}
-          </div>
         </div>
       )}
 
-      <div className="stack" style={{ flex: 1, alignItems: "center" }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
         <HistoryGrid history={state.history} />
       </div>
     </div>
