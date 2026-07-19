@@ -24,57 +24,6 @@ function toSharedState(state: FtdState): FtdSharedState {
   };
 }
 
-function HistoryStrip({ history }: { history: FtdHistoryEntry[] }) {
-  if (history.length === 0) {
-    return (
-      <div className="card-panel text-center text-dim" style={{ fontSize: "0.8rem", width: "100%" }}>
-        No cards played yet
-      </div>
-    );
-  }
-  return (
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        overflowX: "auto",
-        padding: "8px 4px",
-        width: "100%",
-        WebkitOverflowScrolling: "touch",
-      }}
-    >
-      {history.map((h, i) => {
-        const isCorrect = h.outcome === "correct1" || h.outcome === "correct2";
-        const color = isCorrect ? "var(--correct)" : "var(--take)";
-        const label =
-          h.outcome === "correct1"
-            ? "dealer -10s"
-            : h.outcome === "correct2"
-            ? "dealer -5s"
-            : `guesser -${h.seconds}s`;
-        return (
-          <div
-            key={i}
-            style={{
-              minWidth: 84,
-              flexShrink: 0,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <PlayingCard card={h.card} size="sm" />
-            <div style={{ fontSize: "0.7rem", textAlign: "center", color, lineHeight: 1.2 }}>
-              {label}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function RankKeypad({
   allowedRanks,
   onPick,
@@ -218,9 +167,7 @@ export function FuckTheDealerGame({ publish, onRestart }: Props) {
           <h1>Deck's Done</h1>
           <p>The dealer has been thoroughly fucked. Cheers!</p>
         </div>
-        <div className="stack" style={{ flex: 1, marginTop: 16 }}>
-          <HistoryStrip history={state.history} />
-        </div>
+        <div style={{ flex: 1 }} />
         <button className="btn btn-primary btn-block" onClick={onRestart}>
           Play Again
         </button>
@@ -254,7 +201,6 @@ export function FuckTheDealerGame({ publish, onRestart }: Props) {
             Peek Card (Dealer)
           </button>
         </div>
-        <HistoryStrip history={state.history} />
       </div>
     );
   }
@@ -298,7 +244,6 @@ export function FuckTheDealerGame({ publish, onRestart }: Props) {
           </div>
           <RankKeypad allowedRanks={allowedRanks} onPick={submitGuess} />
         </div>
-        <HistoryStrip history={state.history} />
       </div>
     );
   }
@@ -354,7 +299,6 @@ export function FuckTheDealerGame({ publish, onRestart }: Props) {
           {willChangeDealer ? "Pass the Deck" : "Next Card"}
         </button>
       </div>
-      <HistoryStrip history={state.history} />
     </div>
   );
 }
