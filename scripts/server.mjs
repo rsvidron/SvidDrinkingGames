@@ -13,9 +13,14 @@ const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
 
+// Server can reuse the frontend's VITE_SUPABASE_URL (URL is public info) so
+// you don't have to set the same value twice on Railway.
+const SUPABASE_URL_FOR_SERVER =
+  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+
 const supabaseAdmin =
-  process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+  SUPABASE_URL_FOR_SERVER && process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL_FOR_SERVER, process.env.SUPABASE_SERVICE_ROLE_KEY, {
         auth: { autoRefreshToken: false, persistSession: false },
       })
     : null;
