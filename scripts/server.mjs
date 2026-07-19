@@ -29,6 +29,137 @@ const STRIPE_PRICE_DAY_PASS = process.env.STRIPE_PRICE_DAY_PASS;
 const STRIPE_PRICE_LIFETIME = process.env.STRIPE_PRICE_LIFETIME;
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
+// --- In-memory rolling log buffer for the debug endpoint -----------------
+const LOG_BUFFER_SIZE = 500;
+const logBuffer = [];
+function pushLog(level, args) {
+  const time = new Date().toISOString();
+  const line = args
+    .map((a) =>
+      typeof a === "string"
+        ? a
+        : a instanceof Error
+        ? `${a.name}: ${a.message}\n${a.stack ?? ""}`
+        : (() => {
+            try {
+              return JSON.stringify(a);
+            } catch {
+              return String(a);
+            }
+          })()
+    )
+    .join(" ");
+  logBuffer.push(`[${time}] [${level}] ${line}`);
+  if (logBuffer.length > LOG_BUFFER_SIZE) logBuffer.shift();
+}
+const _origLog = console.log.bind(console);
+const _origErr = console.error.bind(console);
+const _origWarn = console.warn.bind(console);
+console.log = (...args) => { pushLog("info", args); _origLog(...args); };
+console.error = (...args) => { pushLog("err", args); _origErr(...args); };
+console.warn = (...args) => { pushLog("warn", args); _origWarn(...args); };
+
+// Token-gated debug routes. If DEBUG_TOKEN isn't set, these 404.
+const DEBUG_TOKEN = process.env.DEBUG_TOKEN;
+
+function requireDebugToken(req, res) {
+  if (!DEBUG_TOKEN) {
+    res.writeHead(404);
+    res.end("Not found");
+    return false;
+  }
+  const parsed = url.parse(req.url || "", true);
+  const provided =
+    parsed.query.token ||
+    (req.headers["x-debug-token"] ?? "").toString();
+  if (provided !== DEBUG_TOKEN) {
+    jsonResponse(res, 401, { error: "unauthorized" });
+    return false;
+  }
+  return true;
+}
+
+function maskLen(v) {
+  if (!v) return { present: false };
+  return { present: true, length: v.length, prefix: v.slice(0, 6) };
+}
+
+async function handleDebugLogs(req, res) {
+  if (!requireDebugToken(req, res)) return;
+  const parsed = url.parse(req.url || "", true);
+  const tail = Math.max(1, Math.min(500, parseInt(parsed.query.tail || "200", 10) || 200));
+  const lines = logBuffer.slice(-tail);
+  res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+  res.end(lines.join("\n") + "\n");
+}
+
+async function handleDebugDiagnose(req, res) {
+  if (!requireDebugToken(req, res)) return;
+  const out = {
+    env: {
+      STRIPE_SECRET_KEY: maskLen(process.env.STRIPE_SECRET_KEY),
+      STRIPE_WEBHOOK_SECRET: maskLen(process.env.STRIPE_WEBHOOK_SECRET),
+      STRIPE_PRICE_DAY_PASS: maskLen(process.env.STRIPE_PRICE_DAY_PASS),
+      STRIPE_PRICE_LIFETIME: maskLen(process.env.STRIPE_PRICE_LIFETIME),
+      SUPABASE_URL: maskLen(SUPABASE_URL_FOR_SERVER),
+      SUPABASE_SERVICE_ROLE_KEY: maskLen(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    },
+    stripe: { mode: null, account_id: null, prices: {} },
+    supabase: { reachable: null },
+  };
+
+  if (stripe) {
+    try {
+      const acct = await stripe.accounts.retrieve();
+      out.stripe.account_id = acct.id;
+      out.stripe.mode = process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_")
+        ? "test"
+        : "live";
+    } catch (err) {
+      out.stripe.account_error = err.message;
+    }
+    for (const [name, id] of [
+      ["day_pass", STRIPE_PRICE_DAY_PASS],
+      ["lifetime", STRIPE_PRICE_LIFETIME],
+    ]) {
+      if (!id) {
+        out.stripe.prices[name] = { error: "not_set" };
+        continue;
+      }
+      try {
+        const price = await stripe.prices.retrieve(id);
+        out.stripe.prices[name] = {
+          id: price.id,
+          active: price.active,
+          unit_amount: price.unit_amount,
+          currency: price.currency,
+          product: price.product,
+          livemode: price.livemode,
+        };
+      } catch (err) {
+        out.stripe.prices[name] = { error: err.message };
+      }
+    }
+  } else {
+    out.stripe.error = "stripe_client_not_initialized";
+  }
+
+  if (supabaseAdmin) {
+    try {
+      const { error } = await supabaseAdmin.from("profiles").select("id").limit(1);
+      out.supabase.reachable = !error;
+      if (error) out.supabase.error = error.message;
+    } catch (err) {
+      out.supabase.reachable = false;
+      out.supabase.error = err.message;
+    }
+  } else {
+    out.supabase.error = "supabase_admin_not_initialized";
+  }
+
+  jsonResponse(res, 200, out);
+}
+
 function jsonResponse(res, status, body) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(body));
@@ -216,6 +347,12 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === "POST" && pathname === "/webhooks/stripe") {
     return handleStripeWebhook(req, res);
+  }
+  if (req.method === "GET" && pathname === "/api/debug/logs") {
+    return handleDebugLogs(req, res);
+  }
+  if (req.method === "GET" && pathname === "/api/debug/diagnose") {
+    return handleDebugDiagnose(req, res);
   }
 
   if (pathname === "/") pathname = "/index.html";
