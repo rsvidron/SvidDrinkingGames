@@ -6,12 +6,42 @@ import { useAuth } from "../lib/authContext";
 import { useAccess } from "../lib/useAccess";
 
 export function Paywall() {
-  const { signOut } = useAuth();
+  const { session, signOut } = useAuth();
   const { refresh } = useAccess();
   const [code, setCode] = useState("");
   const [redeeming, setRedeeming] = useState(false);
+  const [checkoutBusy, setCheckoutBusy] = useState<null | "day_pass" | "lifetime">(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  async function startCheckout(plan: "day_pass" | "lifetime") {
+    setError(null);
+    setCheckoutBusy(plan);
+    try {
+      const res = await fetch("/api/checkout/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) {
+        setError(
+          data.error === "stripe_not_configured"
+            ? "Payments aren't set up yet — try again shortly."
+            : data.error || `Checkout failed (${res.status})`
+        );
+        setCheckoutBusy(null);
+        return;
+      }
+      window.location.href = data.url;
+    } catch (e) {
+      setError((e as Error).message ?? "Network error");
+      setCheckoutBusy(null);
+    }
+  }
 
   async function redeem(e: FormEvent) {
     e.preventDefault();
@@ -43,10 +73,22 @@ export function Paywall() {
       </div>
 
       <div className="stack" style={{ gap: 16 }}>
-        <PricingCards disabled />
+        <PricingCards
+          onBuyDayPass={() => startCheckout("day_pass")}
+          onBuyLifetime={() => startCheckout("lifetime")}
+          disabled={!!checkoutBusy}
+        />
+        {checkoutBusy && (
+          <p
+            className="text-dim text-center"
+            style={{ fontSize: "0.85rem" }}
+          >
+            Redirecting to secure checkout...
+          </p>
+        )}
         <p
           className="text-dim text-center"
-          style={{ fontSize: "0.85rem", margin: "-4px 0 4px" }}
+          style={{ fontSize: "0.85rem", margin: "-4px 0 4px", display: "none" }}
         >
           (Stripe checkout is being finalized — hang tight.)
         </p>

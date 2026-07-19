@@ -3,6 +3,149 @@ import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
 import { WebSocketServer } from "ws";
+import Stripe from "stripe";
+import { createClient } from "@supabase/supabase-js";
+
+// --- Optional Stripe + Supabase server clients ---------------------------
+// If the env vars aren't set, /api/checkout/* and /webhooks/stripe just
+// return 503 so local dev without Stripe still works for game testing.
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY)
+  : null;
+
+const supabaseAdmin =
+  process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+    : null;
+
+const STRIPE_PRICE_DAY_PASS = process.env.STRIPE_PRICE_DAY_PASS;
+const STRIPE_PRICE_LIFETIME = process.env.STRIPE_PRICE_LIFETIME;
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+
+function jsonResponse(res, status, body) {
+  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(body));
+}
+
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (chunk) => chunks.push(chunk));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
+async function readJsonBody(req) {
+  const buf = await readRawBody(req);
+  if (buf.length === 0) return {};
+  return JSON.parse(buf.toString("utf-8"));
+}
+
+async function requireAuthUser(req) {
+  const authHeader = req.headers.authorization || "";
+  if (!authHeader.startsWith("Bearer ") || !supabaseAdmin) return null;
+  const token = authHeader.slice(7);
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data.user) return null;
+  return data.user;
+}
+
+async function handleCheckoutCreate(req, res) {
+  if (!stripe || !supabaseAdmin || !STRIPE_PRICE_DAY_PASS || !STRIPE_PRICE_LIFETIME) {
+    return jsonResponse(res, 503, { error: "stripe_not_configured" });
+  }
+  const user = await requireAuthUser(req);
+  if (!user) return jsonResponse(res, 401, { error: "unauthorized" });
+
+  let body;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    return jsonResponse(res, 400, { error: "bad_json" });
+  }
+
+  const plan = body.plan;
+  let priceId;
+  if (plan === "day_pass") priceId = STRIPE_PRICE_DAY_PASS;
+  else if (plan === "lifetime") priceId = STRIPE_PRICE_LIFETIME;
+  else return jsonResponse(res, 400, { error: "invalid_plan" });
+
+  const origin =
+    req.headers.origin ||
+    (req.headers.host ? `https://${req.headers.host}` : "https://drinking.svidnet.com");
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [{ price: priceId, quantity: 1 }],
+      client_reference_id: user.id,
+      customer_email: user.email,
+      metadata: { user_id: user.id, plan },
+      success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/checkout/cancel`,
+    });
+    jsonResponse(res, 200, { url: session.url });
+  } catch (err) {
+    console.error("[stripe] checkout.session.create failed", err);
+    jsonResponse(res, 500, { error: "stripe_error" });
+  }
+}
+
+async function handleStripeWebhook(req, res) {
+  if (!stripe || !supabaseAdmin || !STRIPE_WEBHOOK_SECRET) {
+    return jsonResponse(res, 503, { error: "stripe_not_configured" });
+  }
+  let rawBody;
+  try {
+    rawBody = await readRawBody(req);
+  } catch {
+    return jsonResponse(res, 400, { error: "bad_body" });
+  }
+
+  const sig = req.headers["stripe-signature"];
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(rawBody, sig, STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error("[stripe] signature verification failed", err.message);
+    return jsonResponse(res, 400, { error: "bad_signature" });
+  }
+
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const userId = session.metadata?.user_id;
+    const plan = session.metadata?.plan;
+    const paymentId = session.payment_intent || session.id;
+
+    if (!userId || !plan) {
+      console.error("[stripe] missing metadata on session", session.id);
+      return jsonResponse(res, 200, { received: true });
+    }
+
+    const type = plan === "day_pass" ? "day_pass" : "lifetime";
+    const expiresAt =
+      plan === "day_pass" ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null;
+
+    const { error: insertErr } = await supabaseAdmin.from("grants").insert({
+      user_id: userId,
+      type,
+      expires_at: expiresAt,
+      source: "stripe",
+      stripe_payment_id: paymentId,
+    });
+    if (insertErr) {
+      console.error("[stripe] grant insert failed", insertErr);
+      return jsonResponse(res, 500, { error: "grant_insert_failed" });
+    }
+    console.log(`[stripe] granted ${type} to user ${userId}`);
+  }
+
+  jsonResponse(res, 200, { received: true });
+}
 
 const PORT = process.env.PORT || 3000;
 const DIST = path.resolve("dist");
@@ -53,7 +196,7 @@ function serveFile(res, filePath) {
     .pipe(res);
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   const parsed = url.parse(req.url || "/");
   let pathname = decodeURIComponent(parsed.pathname || "/");
   if (pathname.includes("..")) {
@@ -61,6 +204,15 @@ const server = http.createServer((req, res) => {
     res.end("Bad request");
     return;
   }
+
+  // API + webhook routes (need to run BEFORE the static-file / SPA fallback).
+  if (req.method === "POST" && pathname === "/api/checkout/create") {
+    return handleCheckoutCreate(req, res);
+  }
+  if (req.method === "POST" && pathname === "/webhooks/stripe") {
+    return handleStripeWebhook(req, res);
+  }
+
   if (pathname === "/") pathname = "/index.html";
   let filePath = path.join(DIST, pathname);
   fs.stat(filePath, (err, stat) => {

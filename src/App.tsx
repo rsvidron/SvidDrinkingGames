@@ -9,6 +9,8 @@ import { ResetPassword } from "./pages/auth/ResetPassword";
 import { AuthCallback } from "./pages/auth/AuthCallback";
 import { Terms } from "./pages/legal/Terms";
 import { Privacy } from "./pages/legal/Privacy";
+import { CheckoutSuccess } from "./pages/CheckoutSuccess";
+import { CheckoutCancel } from "./pages/CheckoutCancel";
 import { UpDownRiverPage } from "./games/upDownRiver/UpDownRiverPage";
 import { KingsCupPage } from "./games/kingsCup/KingsCupPage";
 import { FuckTheDealerPage } from "./games/fuckTheDealer/FuckTheDealerPage";
@@ -29,6 +31,10 @@ function App() {
           <Route path="/privacy" element={<Privacy />} />
           {/* Viewer stays public — anyone with the room code can watch */}
           <Route path="/view/:code" element={<FuckTheDealerViewer />} />
+
+          {/* Stripe checkout return pages */}
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
+          <Route path="/checkout/cancel" element={<CheckoutCancel />} />
 
           {/* Home is public — it decides between splash / paywall / picker
               based on auth + access state internally. */}
