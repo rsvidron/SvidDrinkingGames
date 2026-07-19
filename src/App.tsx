@@ -28,15 +28,9 @@ function App() {
           {/* Viewer stays public — anyone with the room code can watch */}
           <Route path="/view/:code" element={<FuckTheDealerViewer />} />
 
-          {/* Auth-gated routes */}
-          <Route
-            path="/"
-            element={
-              <AuthGuard>
-                <Home />
-              </AuthGuard>
-            }
-          />
+          {/* Home is public — it decides between splash / paywall / picker
+              based on auth + access state internally. */}
+          <Route path="/" element={<Home />} />
           <Route
             path="/games/up-down-river/setup"
             element={
