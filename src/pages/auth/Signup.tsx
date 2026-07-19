@@ -40,33 +40,59 @@ export function Signup() {
     }
     setBusy(true);
 
+    // Stash the birth year + terms; AuthCallback applies them to profiles
+    // once we know the user has a live session (post email-verify or immediate
+    // if email confirmation is off in Supabase settings).
+    sessionStorage.setItem(
+      "pending_profile",
+      JSON.stringify({
+        birth_year: parseInt(birthYear, 10),
+        agreed_to_terms_at: new Date().toISOString(),
+      })
+    );
+
     const { data, error: signupError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: {
-          birth_year: parseInt(birthYear, 10),
-        },
       },
     });
     if (signupError) {
       setBusy(false);
-      setError(signupError.message);
+      // Fallback messages in case Supabase returns an error object without a
+      // .message field so we never render a bare "{}" again.
+      const msg =
+        signupError.message ||
+        (typeof signupError === "object"
+          ? (signupError as { name?: string; code?: string; status?: number }).code ||
+            (signupError as { name?: string }).name ||
+            `Signup failed (status ${(signupError as { status?: number }).status ?? "unknown"})`
+          : "Signup failed");
+      // eslint-disable-next-line no-console
+      console.error("[signup] error", signupError);
+      setError(msg);
+      sessionStorage.removeItem("pending_profile");
       return;
     }
 
-    // If the user already has a session (e.g. autoconfirm on in Supabase for dev),
-    // write their profile now. If they still need to verify email, we do this
-    // again on first login via the callback page.
-    if (data.user) {
-      await supabase
+    // If email confirmation is enabled (the default in Supabase), data.session
+    // is null and we show the "check your email" screen. If it's disabled, the
+    // user already has a session and AuthCallback will still finalize the
+    // profile on first navigation.
+    if (data.session && data.user) {
+      const { error: profErr } = await supabase
         .from("profiles")
         .update({
           birth_year: parseInt(birthYear, 10),
           agreed_to_terms_at: new Date().toISOString(),
         })
         .eq("id", data.user.id);
+      if (profErr) {
+        // eslint-disable-next-line no-console
+        console.warn("[signup] profile update failed", profErr);
+      }
+      sessionStorage.removeItem("pending_profile");
     }
 
     setBusy(false);
