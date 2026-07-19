@@ -34,6 +34,15 @@ function RankColumn({
 }) {
   const count = entries.length;
   const exhausted = count >= 4;
+  const labelStyle: React.CSSProperties = {
+    fontWeight: 700,
+    fontSize: "1.05rem",
+    color: exhausted ? "var(--text-dim)" : "var(--text)",
+    textDecoration: exhausted ? "line-through" : "none",
+    minWidth: CARD_W,
+    textAlign: "center",
+    lineHeight: 1,
+  };
 
   return (
     <div
@@ -45,18 +54,7 @@ function RankColumn({
         flexShrink: 0,
       }}
     >
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: "1.05rem",
-          color: exhausted ? "var(--text-dim)" : "var(--text)",
-          textDecoration: exhausted ? "line-through" : "none",
-          minWidth: CARD_W,
-          textAlign: "center",
-        }}
-      >
-        {rank}
-      </div>
+      <div style={labelStyle}>{rank}</div>
       <div
         style={{
           position: "relative",
@@ -99,9 +97,8 @@ function RankColumn({
           );
         })}
       </div>
-      <div style={{ fontSize: "0.7rem", color: exhausted ? "var(--text-dim)" : "var(--text)" }}>
-        {count}/4
-      </div>
+      {/* Second label for the person on the opposite side of the table. */}
+      <div style={{ ...labelStyle, transform: "rotate(180deg)" }}>{rank}</div>
     </div>
   );
 }
@@ -271,6 +268,36 @@ export function FuckTheDealerViewer() {
 
       <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
         <HistoryGrid history={state.history} />
+      </div>
+
+      {/* Mirrored status for the person sitting across the table. Rotated 180
+          so from their view it reads right-side-up in their top-right. */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-start",
+          alignItems: "center",
+          gap: 12,
+          marginTop: 8,
+          fontSize: "0.85rem",
+          transform: "rotate(180deg)",
+        }}
+      >
+        <span className="text-dim">{state.cardsLeft} left</span>
+        <span
+          style={{
+            color: state.consecutiveFails >= 2 ? "var(--take)" : "var(--text-dim)",
+            fontWeight: state.consecutiveFails >= 2 ? 700 : 400,
+          }}
+        >
+          {state.consecutiveFails}/3 fails
+        </span>
+        {state.phase === "peek" && (
+          <span style={{ color: "var(--accent-2)", fontWeight: 700 }}>🎴 guessing…</span>
+        )}
+        {state.dealerJustChanged && (
+          <span style={{ color: "var(--gold)", fontWeight: 700 }}>👑 new dealer</span>
+        )}
       </div>
     </div>
   );
