@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { GameMenu } from "../../components/GameMenu";
 import { PlayingCard } from "../../components/PlayingCard";
 import { RiverCircle } from "./RiverCircle";
 import { SUITS, suitSymbol, type Suit } from "../../lib/deck";
@@ -70,7 +71,42 @@ function RiverResultModal({ result, onDismiss, buttonLabel }: {
 interface Props {
   settings: GameSettings;
   onRestart: () => void;
+  onMenuRestart: () => void;
 }
+
+const UDR_RULES = (
+  <>
+    <p style={{ marginTop: 0 }}>
+      Everyone plays a round of 4 pyramid guesses, then a river phase settles the tally.
+    </p>
+    <strong>Pyramid (round by round, everyone guesses each round)</strong>
+    <ul style={{ paddingLeft: 20 }}>
+      <li>
+        <strong>Round 1 — Red or Black</strong> (worth 1)
+      </li>
+      <li>
+        <strong>Round 2 — Higher or Lower</strong> than your 1st card (worth 2)
+      </li>
+      <li>
+        <strong>Round 3 — Inside or Outside</strong> your first two cards (worth 3)
+      </li>
+      <li>
+        <strong>Round 4 — Guess the suit</strong> (worth 4)
+      </li>
+    </ul>
+    <p>
+      Correct → give out the drink count. Wrong → drink it. Push (tie) is
+      configurable in setup.
+    </p>
+    <strong>River</strong>
+    <p style={{ marginBottom: 0 }}>
+      Cards flip one at a time around the oval. Give side (top) gives out drinks;
+      Take side (bottom) takes them. Each card is worth 1, 2, 3, or 4 based on how
+      far along you are. If a river card matches a rank in someone's pyramid, they
+      give / drink that amount.
+    </p>
+  </>
+);
 
 function OutcomeBanner({
   outcome,
@@ -121,9 +157,16 @@ function OutcomeBanner({
   );
 }
 
-export function UpDownRiverGame({ settings, onRestart }: Props) {
+export function UpDownRiverGame({ settings, onRestart, onMenuRestart }: Props) {
   const [state, setState] = useState<GameState>(() => initGame(settings));
   const [riverResult, setRiverResult] = useState<RiverResult | null>(null);
+  const menu = (
+    <GameMenu
+      gameTitle="Up the River, Down the River"
+      rules={UDR_RULES}
+      onRestart={onMenuRestart}
+    />
+  );
 
   function resolveStage(guess: string, outcome: PyramidOutcome) {
     setState((prev) => {
@@ -213,7 +256,9 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
     const resolved = !!stage.outcome;
 
     return (
-      <div className="screen">
+      <>
+        {menu}
+        <div className="screen">
         <div className="screen-header">
           <h1>{stage.label}</h1>
           <p>
@@ -346,7 +391,8 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
             </>
           )}
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -357,39 +403,42 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
     const label = isUp ? "Up the River" : "Down the River";
 
     return (
-      <div className="screen">
-        <div className="screen-header">
-          <h1>{label}</h1>
-          <p>
-            {isUp
-              ? `Got this rank? Give out ${riverCard.drinkValue} drink${riverCard.drinkValue > 1 ? "s" : ""}.`
-              : `Got this rank? Drink ${riverCard.drinkValue}.`}
-          </p>
-        </div>
+      <>
+        {menu}
+        <div className="screen">
+          <div className="screen-header">
+            <h1>{label}</h1>
+            <p>
+              {isUp
+                ? `Got this rank? Give out ${riverCard.drinkValue} drink${riverCard.drinkValue > 1 ? "s" : ""}.`
+                : `Got this rank? Drink ${riverCard.drinkValue}.`}
+            </p>
+          </div>
 
-        <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
-          <RiverCircle
-            riverCards={state.riverCards}
-            currentIndex={state.currentRiverIndex}
-            revealed={state.riverRevealed}
-            onFlip={revealRiverCard}
-          />
+          <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
+            <RiverCircle
+              riverCards={state.riverCards}
+              currentIndex={state.currentRiverIndex}
+              revealed={state.riverRevealed}
+              onFlip={revealRiverCard}
+            />
 
-          {!state.riverRevealed && (
-            <button className="btn btn-primary btn-block" onClick={revealRiverCard}>
-              Flip Card
-            </button>
+            {!state.riverRevealed && (
+              <button className="btn btn-primary btn-block" onClick={revealRiverCard}>
+                Flip Card
+              </button>
+            )}
+          </div>
+
+          {riverResult && (
+            <RiverResultModal
+              result={riverResult}
+              onDismiss={dismissRiverResult}
+              buttonLabel={idx === state.riverCards.length - 1 ? "See Final Tally" : "Next Card"}
+            />
           )}
         </div>
-
-        {riverResult && (
-          <RiverResultModal
-            result={riverResult}
-            onDismiss={dismissRiverResult}
-            buttonLabel={idx === state.riverCards.length - 1 ? "See Final Tally" : "Next Card"}
-          />
-        )}
-      </div>
+      </>
     );
   }
 
@@ -398,27 +447,30 @@ export function UpDownRiverGame({ settings, onRestart }: Props) {
   );
 
   return (
-    <div className="screen">
-      <div className="screen-header">
-        <h1>Game Over</h1>
-        <p>Final tally of the night</p>
+    <>
+      {menu}
+      <div className="screen">
+        <div className="screen-header">
+          <h1>Game Over</h1>
+          <p>Final tally of the night</p>
+        </div>
+        <div className="stack">
+          {sorted.map((p) => (
+            <div key={p.id} className="card-panel row" style={{ justifyContent: "space-between" }}>
+              <strong>{p.name}</strong>
+              <span>
+                <span style={{ color: "var(--give)" }}>gave {p.drinksGiven}</span>
+                {" · "}
+                <span style={{ color: "var(--take)" }}>drank {p.drinksTaken}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="spacer" />
+        <button className="btn btn-primary btn-block" onClick={onRestart}>
+          Play Again
+        </button>
       </div>
-      <div className="stack">
-        {sorted.map((p) => (
-          <div key={p.id} className="card-panel row" style={{ justifyContent: "space-between" }}>
-            <strong>{p.name}</strong>
-            <span>
-              <span style={{ color: "var(--give)" }}>gave {p.drinksGiven}</span>
-              {" · "}
-              <span style={{ color: "var(--take)" }}>drank {p.drinksTaken}</span>
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="spacer" />
-      <button className="btn btn-primary btn-block" onClick={onRestart}>
-        Play Again
-      </button>
-    </div>
+    </>
   );
 }

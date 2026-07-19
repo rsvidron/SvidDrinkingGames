@@ -1,9 +1,34 @@
 import { useEffect, useState } from "react";
+import { GameMenu } from "../../components/GameMenu";
 import { PlayingCard } from "../../components/PlayingCard";
 import { RANKS, suitSymbol, type Rank } from "../../lib/deck";
 import { directionHint, initFtd, rankDifference } from "./engine";
 import type { FtdSharedState } from "./sharedState";
 import type { FtdHistoryEntry, FtdState } from "./types";
+
+const FTD_RULES = (
+  <>
+    <p style={{ marginTop: 0 }}>
+      Pass the phone around the circle — whoever's dealing peeks the card and taps in the
+      next player's guess.
+    </p>
+    <ul style={{ paddingLeft: 20 }}>
+      <li>
+        <strong>Correct on 1st guess</strong> → dealer drinks 10 sec
+      </li>
+      <li>
+        <strong>Correct on 2nd guess</strong> → dealer drinks 5 sec
+      </li>
+      <li>
+        <strong>Miss both</strong> → guesser drinks the rank difference in seconds
+      </li>
+      <li>
+        <strong>3 fails in a row</strong> → the deck passes to the next player
+      </li>
+    </ul>
+    <p>Game ends when the deck is empty.</p>
+  </>
+);
 
 interface Props {
   publish: (state: FtdSharedState) => void;
@@ -75,6 +100,10 @@ export function FuckTheDealerGame({ publish, onRestart }: Props) {
   useEffect(() => {
     publish(toSharedState(state));
   }, [state, publish]);
+
+  const menu = (
+    <GameMenu gameTitle="Fuck the Dealer" rules={FTD_RULES} onRestart={onRestart} />
+  );
 
   function beginTurn() {
     setState((prev) => {
@@ -166,46 +195,52 @@ export function FuckTheDealerGame({ publish, onRestart }: Props) {
 
   if (state.phase === "gameover") {
     return (
-      <div className="screen">
-        <div className="screen-header">
-          <h1>Deck's Done</h1>
-          <p>The dealer has been thoroughly fucked. Cheers!</p>
+      <>
+        {menu}
+        <div className="screen">
+          <div className="screen-header">
+            <h1>Deck's Done</h1>
+            <p>The dealer has been thoroughly fucked. Cheers!</p>
+          </div>
+          <div style={{ flex: 1 }} />
+          <button className="btn btn-primary btn-block" onClick={onRestart}>
+            Play Again
+          </button>
         </div>
-        <div style={{ flex: 1 }} />
-        <button className="btn btn-primary btn-block" onClick={onRestart}>
-          Play Again
-        </button>
-      </div>
+      </>
     );
   }
 
   if (state.phase === "handoff") {
     return (
-      <div className="screen">
-        <div className="screen-header">
-          <h1>Pass the phone to the dealer</h1>
-          <p>
-            {state.deck.length} cards left &middot; {state.consecutiveFails}/3 fails
-          </p>
-        </div>
-        <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
-          {state.dealerJustChanged && (
-            <div className="card-panel text-center" style={{ borderColor: "var(--gold)" }}>
-              <strong style={{ color: "var(--gold)" }}>Deck passes to the next player!</strong>
-              <div className="text-dim">3 fails reset.</div>
-            </div>
-          )}
-          <div className="card-panel text-center">
-            <strong>Guesser, look away!</strong>
-            <div className="text-dim">
-              Dealer peeks the card, then asks you for a rank.
-            </div>
+      <>
+        {menu}
+        <div className="screen">
+          <div className="screen-header">
+            <h1>Pass the phone to the dealer</h1>
+            <p>
+              {state.deck.length} cards left &middot; {state.consecutiveFails}/3 fails
+            </p>
           </div>
-          <button className="btn btn-primary btn-block" onClick={beginTurn}>
-            Peek Card (Dealer)
-          </button>
+          <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
+            {state.dealerJustChanged && (
+              <div className="card-panel text-center" style={{ borderColor: "var(--gold)" }}>
+                <strong style={{ color: "var(--gold)" }}>Deck passes to the next player!</strong>
+                <div className="text-dim">3 fails reset.</div>
+              </div>
+            )}
+            <div className="card-panel text-center">
+              <strong>Guesser, look away!</strong>
+              <div className="text-dim">
+                Dealer peeks the card, then asks you for a rank.
+              </div>
+            </div>
+            <button className="btn btn-primary btn-block" onClick={beginTurn}>
+              Peek Card (Dealer)
+            </button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -221,36 +256,39 @@ export function FuckTheDealerGame({ publish, onRestart }: Props) {
       : RANKS.slice(0, firstIdx);
 
     return (
-      <div className="screen">
-        <div className="screen-header">
-          <h1>{isFirstGuess ? "First Guess" : `Wrong — ${hint === "higher" ? "Higher" : "Lower"}!`}</h1>
-        </div>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ transform: "scale(1.35)", transformOrigin: "center" }}>
-            <PlayingCard card={card} size="lg" />
+      <>
+        {menu}
+        <div className="screen">
+          <div className="screen-header">
+            <h1>{isFirstGuess ? "First Guess" : `Wrong — ${hint === "higher" ? "Higher" : "Lower"}!`}</h1>
           </div>
-        </div>
-        <div className="stack" style={{ width: "100%", gap: 8 }}>
-          {!isFirstGuess && (
-            <div
-              className="text-center"
-              style={{
-                borderTop: `2px solid ${hint === "higher" ? "var(--give)" : "var(--take)"}`,
-                borderBottom: `2px solid ${hint === "higher" ? "var(--give)" : "var(--take)"}`,
-                padding: "6px 0",
-              }}
-            >
-              <strong style={{ color: hint === "higher" ? "var(--give)" : "var(--take)", fontSize: "0.95rem" }}>
-                Tell them: {hint === "higher" ? "Higher!" : "Lower!"} (first guess {state.firstGuess})
-              </strong>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ transform: "scale(1.35)", transformOrigin: "center" }}>
+              <PlayingCard card={card} size="lg" />
             </div>
-          )}
-          <div className="text-dim text-center" style={{ fontSize: "0.8rem" }}>
-            Tap the rank they guessed
           </div>
-          <RankKeypad allowedRanks={allowedRanks} onPick={submitGuess} />
+          <div className="stack" style={{ width: "100%", gap: 8 }}>
+            {!isFirstGuess && (
+              <div
+                className="text-center"
+                style={{
+                  borderTop: `2px solid ${hint === "higher" ? "var(--give)" : "var(--take)"}`,
+                  borderBottom: `2px solid ${hint === "higher" ? "var(--give)" : "var(--take)"}`,
+                  padding: "6px 0",
+                }}
+              >
+                <strong style={{ color: hint === "higher" ? "var(--give)" : "var(--take)", fontSize: "0.95rem" }}>
+                  Tell them: {hint === "higher" ? "Higher!" : "Lower!"} (first guess {state.firstGuess})
+                </strong>
+              </div>
+            )}
+            <div className="text-dim text-center" style={{ fontSize: "0.8rem" }}>
+              Tap the rank they guessed
+            </div>
+            <RankKeypad allowedRanks={allowedRanks} onPick={submitGuess} />
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -259,52 +297,55 @@ export function FuckTheDealerGame({ publish, onRestart }: Props) {
   const willChangeDealer = state.consecutiveFails >= 3;
 
   return (
-    <div className="screen">
-      <div className="screen-header">
-        <h1>
-          {last.outcome === "correct1"
-            ? "Correct on 1st!"
-            : last.outcome === "correct2"
-            ? "Correct on 2nd!"
-            : "Missed both!"}
-        </h1>
-        <p>
-          Card was {last.card.rank}
-          {suitSymbol(last.card.suit)} &middot; guesses: {last.guesses.join(", ")}
-        </p>
-      </div>
-      <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
-        <PlayingCard card={last.card} size="lg" />
-        <div
-          className="card-panel text-center"
-          style={{ borderColor: isMissed ? "var(--take)" : "var(--correct)" }}
-        >
-          {last.outcome === "correct1" && (
-            <strong style={{ color: "var(--correct)", fontSize: "1.4rem" }}>
-              Dealer drinks 10 seconds!
-            </strong>
-          )}
-          {last.outcome === "correct2" && (
-            <strong style={{ color: "var(--correct)", fontSize: "1.4rem" }}>
-              Dealer drinks 5 seconds!
-            </strong>
-          )}
-          {last.outcome === "missed" && (
-            <strong style={{ color: "var(--take)", fontSize: "1.4rem" }}>
-              Guesser drinks {last.seconds} second{last.seconds === 1 ? "" : "s"}!
-            </strong>
-          )}
+    <>
+      {menu}
+      <div className="screen">
+        <div className="screen-header">
+          <h1>
+            {last.outcome === "correct1"
+              ? "Correct on 1st!"
+              : last.outcome === "correct2"
+              ? "Correct on 2nd!"
+              : "Missed both!"}
+          </h1>
+          <p>
+            Card was {last.card.rank}
+            {suitSymbol(last.card.suit)} &middot; guesses: {last.guesses.join(", ")}
+          </p>
         </div>
-        {willChangeDealer && (
-          <div className="card-panel text-center" style={{ borderColor: "var(--gold)" }}>
-            <strong style={{ color: "var(--gold)" }}>3 fails in a row!</strong>
-            <div className="text-dim">Deck passes to the next player.</div>
+        <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
+          <PlayingCard card={last.card} size="lg" />
+          <div
+            className="card-panel text-center"
+            style={{ borderColor: isMissed ? "var(--take)" : "var(--correct)" }}
+          >
+            {last.outcome === "correct1" && (
+              <strong style={{ color: "var(--correct)", fontSize: "1.4rem" }}>
+                Dealer drinks 10 seconds!
+              </strong>
+            )}
+            {last.outcome === "correct2" && (
+              <strong style={{ color: "var(--correct)", fontSize: "1.4rem" }}>
+                Dealer drinks 5 seconds!
+              </strong>
+            )}
+            {last.outcome === "missed" && (
+              <strong style={{ color: "var(--take)", fontSize: "1.4rem" }}>
+                Guesser drinks {last.seconds} second{last.seconds === 1 ? "" : "s"}!
+              </strong>
+            )}
           </div>
-        )}
-        <button className="btn btn-primary btn-block" onClick={nextTurn}>
-          {willChangeDealer ? "Pass the Deck" : "Next Card"}
-        </button>
+          {willChangeDealer && (
+            <div className="card-panel text-center" style={{ borderColor: "var(--gold)" }}>
+              <strong style={{ color: "var(--gold)" }}>3 fails in a row!</strong>
+              <div className="text-dim">Deck passes to the next player.</div>
+            </div>
+          )}
+          <button className="btn btn-primary btn-block" onClick={nextTurn}>
+            {willChangeDealer ? "Pass the Deck" : "Next Card"}
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

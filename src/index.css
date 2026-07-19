@@ -60,6 +60,8 @@ button {
 .screen-header {
   text-align: center;
   margin-bottom: 20px;
+  /* Leave room for the fixed hamburger toggle in the top-right corner. */
+  padding: 0 52px;
 }
 
 .screen-header h1 {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { GameMenu } from "../../components/GameMenu";
 import { PlayingCard } from "../../components/PlayingCard";
 import { initKingsCup } from "./engine";
 import { KING_RULE_PRESETS, RANK_RULES } from "./rankRules";
@@ -7,7 +8,60 @@ import type { KcSettings, KcState } from "./types";
 interface Props {
   settings: KcSettings;
   onRestart: () => void;
+  onMenuRestart: () => void;
 }
+
+const KC_RULES = (
+  <>
+    <p style={{ marginTop: 0 }}>
+      Draw cards one at a time until the deck runs out. Each rank does something
+      different:
+    </p>
+    <ul style={{ paddingLeft: 20 }}>
+      <li>
+        <strong>2 – You</strong>: pick someone to drink
+      </li>
+      <li>
+        <strong>3 – Me</strong>: whoever drew, drinks
+      </li>
+      <li>
+        <strong>4 – Floor</strong>: last to touch the floor drinks
+      </li>
+      <li>
+        <strong>5 – Guys</strong>: all guys drink
+      </li>
+      <li>
+        <strong>6 – Chicks</strong>: all girls drink (Social if no girls)
+      </li>
+      <li>
+        <strong>7 – Heaven</strong>: last to raise a hand drinks
+      </li>
+      <li>
+        <strong>8 – Mate</strong>: pick two mates — when either drinks, both drink
+      </li>
+      <li>
+        <strong>9 – Rhyme</strong>: pick a word, go around rhyming
+      </li>
+      <li>
+        <strong>10 – Categories</strong>: pick a category, go around naming
+      </li>
+      <li>
+        <strong>J – Never Have I Ever</strong>: 3 fingers, tap for each you've done
+      </li>
+      <li>
+        <strong>Q – Question Master</strong>: pick someone to be QM; anyone who
+        answers their questions drinks
+      </li>
+      <li>
+        <strong>K – Make a Rule</strong>: pick a rule; lasts until the next King
+      </li>
+      <li>
+        <strong>A – Waterfall</strong>: everyone drinks continuously until the
+        person before them stops
+      </li>
+    </ul>
+  </>
+);
 
 function StatusBanner({ state }: { state: KcState }) {
   const qm = state.questionMasterId != null ? state.players.find((p) => p.id === state.questionMasterId) : null;
@@ -50,7 +104,10 @@ function StatusBanner({ state }: { state: KcState }) {
   );
 }
 
-export function KingsCupGame({ settings, onRestart }: Props) {
+export function KingsCupGame({ settings, onRestart, onMenuRestart }: Props) {
+  const menu = (
+    <GameMenu gameTitle="Kings Cup" rules={KC_RULES} onRestart={onMenuRestart} />
+  );
   const [state, setState] = useState<KcState>(() => initKingsCup(settings));
   const [targetIds, setTargetIds] = useState<number[]>([]);
   const [textInput, setTextInput] = useState("");
@@ -121,38 +178,44 @@ export function KingsCupGame({ settings, onRestart }: Props) {
 
   if (state.phase === "gameover") {
     return (
-      <div className="screen">
-        <div className="screen-header">
-          <h1>Kings Cup Over</h1>
-          <p>Deck empty. Cheers!</p>
+      <>
+        {menu}
+        <div className="screen">
+          <div className="screen-header">
+            <h1>Kings Cup Over</h1>
+            <p>Deck empty. Cheers!</p>
+          </div>
+          <div className="spacer" />
+          <button className="btn btn-primary btn-block" onClick={onRestart}>
+            Play Again
+          </button>
         </div>
-        <div className="spacer" />
-        <button className="btn btn-primary btn-block" onClick={onRestart}>
-          Play Again
-        </button>
-      </div>
+      </>
     );
   }
 
   if (state.phase === "draw") {
     return (
-      <div className="screen">
-        <div className="screen-header">
-          <h1>Draw a Card</h1>
-          <p>
-            {state.deck.length} cards left &middot; {state.kingsDrawn}/4 Kings &middot; {state.matePairs.length}/4 Mates
-          </p>
-        </div>
-        <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
-          <StatusBanner state={state} />
-          <div onClick={drawCard} style={{ cursor: "pointer" }}>
-            <PlayingCard faceDown size="lg" />
+      <>
+        {menu}
+        <div className="screen">
+          <div className="screen-header">
+            <h1>Draw a Card</h1>
+            <p>
+              {state.deck.length} cards left &middot; {state.kingsDrawn}/4 Kings &middot; {state.matePairs.length}/4 Mates
+            </p>
           </div>
-          <button className="btn btn-primary btn-block" onClick={drawCard}>
-            Draw Card
-          </button>
+          <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
+            <StatusBanner state={state} />
+            <div onClick={drawCard} style={{ cursor: "pointer" }}>
+              <PlayingCard faceDown size="lg" />
+            </div>
+            <button className="btn btn-primary btn-block" onClick={drawCard}>
+              Draw Card
+            </button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -353,19 +416,22 @@ export function KingsCupGame({ settings, onRestart }: Props) {
   })();
 
   return (
-    <div className="screen">
-      <div className="screen-header">
-        <h1>{rule?.title ?? card.rank}</h1>
-        <p>{rule?.description}</p>
+    <>
+      {menu}
+      <div className="screen">
+        <div className="screen-header">
+          <h1>{rule?.title ?? card.rank}</h1>
+          <p>{rule?.description}</p>
+        </div>
+        <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
+          <StatusBanner state={state} />
+          <PlayingCard card={card} size="lg" />
+          {renderResolution()}
+          <button className="btn btn-primary btn-block" disabled={!canContinue} onClick={continueTurn}>
+            Next Card
+          </button>
+        </div>
       </div>
-      <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
-        <StatusBanner state={state} />
-        <PlayingCard card={card} size="lg" />
-        {renderResolution()}
-        <button className="btn btn-primary btn-block" disabled={!canContinue} onClick={continueTurn}>
-          Next Card
-        </button>
-      </div>
-    </div>
+    </>
   );
 }
