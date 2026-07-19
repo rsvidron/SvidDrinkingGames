@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "./supabase";
 import { useAuth } from "./authContext";
 
@@ -14,7 +14,9 @@ export interface AccessState {
   refresh: () => Promise<void>;
 }
 
-export function useAccess(): AccessState {
+const AccessContext = createContext<AccessState | null>(null);
+
+export function AccessProvider({ children }: { children: ReactNode }) {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
@@ -70,7 +72,6 @@ export function useAccess(): AccessState {
         (a, b) => priorityOrder.indexOf(a.type) - priorityOrder.indexOf(b.type)
       )[0] ?? null;
 
-    // Admin users always have access (bypass free-weekend check).
     const admin = profile?.is_admin ?? false;
 
     setFreeWeekend(fw);
@@ -85,12 +86,24 @@ export function useAccess(): AccessState {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, profile?.is_admin]);
 
-  return {
-    loading,
-    hasAccess,
-    freeWeekend,
-    freeWeekendUntil,
-    bestGrant,
-    refresh: load,
-  };
+  return (
+    <AccessContext.Provider
+      value={{
+        loading,
+        hasAccess,
+        freeWeekend,
+        freeWeekendUntil,
+        bestGrant,
+        refresh: load,
+      }}
+    >
+      {children}
+    </AccessContext.Provider>
+  );
+}
+
+export function useAccess(): AccessState {
+  const ctx = useContext(AccessContext);
+  if (!ctx) throw new Error("useAccess must be used inside an AccessProvider");
+  return ctx;
 }

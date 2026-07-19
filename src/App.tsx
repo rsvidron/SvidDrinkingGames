@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./lib/authContext";
+import { AccessProvider } from "./lib/useAccess";
 import { AuthGuard } from "./components/AuthGuard";
 import { Home } from "./pages/Home";
 import { Login } from "./pages/auth/Login";
@@ -16,7 +17,8 @@ import { FuckTheDealerViewer } from "./games/fuckTheDealer/FuckTheDealerViewer";
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <AccessProvider>
+        <BrowserRouter>
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
@@ -55,8 +57,9 @@ function App() {
               </AuthGuard>
             }
           />
-        </Routes>
-      </BrowserRouter>
+          </Routes>
+        </BrowserRouter>
+      </AccessProvider>
     </AuthProvider>
   );
 }
