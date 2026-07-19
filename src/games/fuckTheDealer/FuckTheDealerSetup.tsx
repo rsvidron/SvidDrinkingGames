@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { QRCodeSVG } from "qrcode.react";
+import { useHostRoom } from "../../lib/sharedRoom";
+import type { FtdSharedState } from "./sharedState";
 import type { FtdSettings } from "./types";
 
 interface Props {
-  onStart: (settings: FtdSettings) => void;
+  onStart: (settings: FtdSettings, publish: (state: FtdSharedState) => void) => void;
 }
 
 const DEFAULT_PLAYER_COUNT = 4;
@@ -16,6 +19,11 @@ function defaultNameFor(index: number) {
 export function FuckTheDealerSetup({ onStart }: Props) {
   const [names, setNames] = useState<string[]>(
     Array.from({ length: DEFAULT_PLAYER_COUNT }, (_, i) => defaultNameFor(i))
+  );
+
+  const { status, code, viewerCount, publish, viewerUrl } = useHostRoom<FtdSharedState>(
+    "fuck-the-dealer",
+    true
   );
 
   const setPlayerCount = (count: number) => {
@@ -32,16 +40,51 @@ export function FuckTheDealerSetup({ onStart }: Props) {
     setNames((prev) => prev.map((n, i) => (i === index ? value : n)));
   };
 
-  const canStart = names.every((n) => n.trim().length > 0);
+  const canStart =
+    names.every((n) => n.trim().length > 0) && status === "connected" && viewerCount > 0;
 
   return (
     <div className="screen">
       <div className="screen-header">
         <h1>Fuck the Dealer</h1>
-        <p>Guess the rank. Miss too many and you're the new dealer.</p>
+        <p>Requires 2 devices — one for the dealer, one for the table.</p>
       </div>
 
       <div className="stack">
+        <div className="card-panel" style={{ borderColor: status === "connected" ? "var(--correct)" : "var(--gold)" }}>
+          <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <strong>Table Display</strong>
+              <div className="text-dim" style={{ fontSize: "0.85rem" }}>
+                {status === "connecting" && "Setting up room..."}
+                {status === "waiting" && "Scan the QR on a second phone / tablet / TV"}
+                {status === "connected" && `Connected (${viewerCount} viewer${viewerCount === 1 ? "" : "s"})`}
+                {status === "error" && "Connection error"}
+              </div>
+            </div>
+            {code && (
+              <div style={{ fontSize: "1.6rem", fontWeight: 700, letterSpacing: 2 }}>{code}</div>
+            )}
+          </div>
+
+          {code && viewerUrl && status !== "connected" && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 12, gap: 8 }}>
+              <div style={{ background: "#fff", padding: 12, borderRadius: 12 }}>
+                <QRCodeSVG value={viewerUrl} size={180} />
+              </div>
+              <div className="text-dim" style={{ fontSize: "0.75rem", textAlign: "center", wordBreak: "break-all" }}>
+                {viewerUrl}
+              </div>
+            </div>
+          )}
+
+          {status === "connected" && (
+            <div className="card-panel text-center" style={{ borderColor: "var(--correct)", marginTop: 12 }}>
+              <strong style={{ color: "var(--correct)" }}>Ready to deal ✓</strong>
+            </div>
+          )}
+        </div>
+
         <div className="card-panel">
           <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
             <div>
@@ -117,9 +160,9 @@ export function FuckTheDealerSetup({ onStart }: Props) {
         <button
           className="btn btn-primary btn-block"
           disabled={!canStart}
-          onClick={() => onStart({ playerNames: names.map((n) => n.trim()) })}
+          onClick={() => onStart({ playerNames: names.map((n) => n.trim()) }, publish)}
         >
-          Deal Me In
+          {status === "connected" ? "Deal Me In" : "Waiting for table display..."}
         </button>
         <Link to="/" className="btn btn-ghost btn-block text-center">
           Back to games

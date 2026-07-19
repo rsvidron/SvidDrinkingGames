@@ -1,12 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PlayingCard } from "../../components/PlayingCard";
 import { RANKS, suitSymbol, type Rank } from "../../lib/deck";
 import { directionHint, initFtd, nextGuesserIndex, rankDifference } from "./engine";
+import type { FtdSharedState } from "./sharedState";
 import type { FtdHistoryEntry, FtdState, FtdSettings } from "./types";
 
 interface Props {
   settings: FtdSettings;
+  publish: (state: FtdSharedState) => void;
   onRestart: () => void;
+}
+
+function toSharedState(state: FtdState): FtdSharedState {
+  const dealer = state.players[state.dealerIndex];
+  const guesser = state.players[state.guesserIndex];
+  return {
+    dealerName: dealer?.name ?? "?",
+    guesserName: guesser?.name ?? "?",
+    cardsLeft: state.deck.length,
+    consecutiveFails: state.consecutiveFails,
+    history: state.history,
+    phase: state.phase,
+    // Only surface the current card on result (or gameover), never during peek —
+    // viewer must not see the card while the guesser is still guessing.
+    currentCardReveal:
+      state.phase === "result" || state.phase === "gameover" ? state.lastEntry : null,
+    dealerJustChanged: state.dealerJustChanged,
+  };
 }
 
 function HistoryStrip({ history }: { history: FtdHistoryEntry[] }) {
@@ -95,8 +115,12 @@ function RankKeypad({
   );
 }
 
-export function FuckTheDealerGame({ settings, onRestart }: Props) {
+export function FuckTheDealerGame({ settings, publish, onRestart }: Props) {
   const [state, setState] = useState<FtdState>(() => initFtd(settings));
+
+  useEffect(() => {
+    publish(toSharedState(state));
+  }, [state, publish]);
 
   const dealer = state.players[state.dealerIndex];
   const guesser = state.players[state.guesserIndex];
