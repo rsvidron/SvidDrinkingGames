@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { useHostRoom } from "../../lib/sharedRoom";
 import { FuckTheDealerSetup } from "./FuckTheDealerSetup";
 import { FuckTheDealerGame } from "./FuckTheDealerGame";
 import type { FtdSharedState } from "./sharedState";
@@ -6,15 +7,13 @@ import type { FtdSettings } from "./types";
 
 export function FuckTheDealerPage() {
   const [settings, setSettings] = useState<FtdSettings | null>(null);
-  const publishRef = useRef<((state: FtdSharedState) => void) | null>(null);
+  const room = useHostRoom<FtdSharedState>("fuck-the-dealer", true);
 
   if (!settings) {
     return (
       <FuckTheDealerSetup
-        onStart={(s, publish) => {
-          publishRef.current = publish;
-          setSettings(s);
-        }}
+        room={room}
+        onStart={(s) => setSettings(s)}
       />
     );
   }
@@ -23,7 +22,7 @@ export function FuckTheDealerPage() {
     <FuckTheDealerGame
       key={JSON.stringify(settings)}
       settings={settings}
-      publish={(state) => publishRef.current?.(state)}
+      publish={room.publish}
       onRestart={() => setSettings(null)}
     />
   );

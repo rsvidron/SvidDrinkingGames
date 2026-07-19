@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
-import { useHostRoom } from "../../lib/sharedRoom";
-import type { FtdSharedState } from "./sharedState";
+import type { SharedRoomStatus } from "../../lib/sharedRoom";
 import type { FtdSettings } from "./types";
 
+interface RoomProps {
+  status: SharedRoomStatus;
+  code: string | null;
+  viewerCount: number;
+  viewerUrl: string | null;
+}
+
 interface Props {
-  onStart: (settings: FtdSettings, publish: (state: FtdSharedState) => void) => void;
+  room: RoomProps;
+  onStart: (settings: FtdSettings) => void;
 }
 
 const DEFAULT_PLAYER_COUNT = 4;
@@ -16,15 +23,12 @@ function defaultNameFor(index: number) {
   return DEFAULT_NAMES[index] ?? `Player ${index + 1}`;
 }
 
-export function FuckTheDealerSetup({ onStart }: Props) {
+export function FuckTheDealerSetup({ room, onStart }: Props) {
   const [names, setNames] = useState<string[]>(
     Array.from({ length: DEFAULT_PLAYER_COUNT }, (_, i) => defaultNameFor(i))
   );
 
-  const { status, code, viewerCount, publish, viewerUrl } = useHostRoom<FtdSharedState>(
-    "fuck-the-dealer",
-    true
-  );
+  const { status, code, viewerCount, viewerUrl } = room;
 
   const setPlayerCount = (count: number) => {
     const clamped = Math.max(2, Math.min(16, count));
@@ -160,7 +164,7 @@ export function FuckTheDealerSetup({ onStart }: Props) {
         <button
           className="btn btn-primary btn-block"
           disabled={!canStart}
-          onClick={() => onStart({ playerNames: names.map((n) => n.trim()) }, publish)}
+          onClick={() => onStart({ playerNames: names.map((n) => n.trim()) })}
         >
           {status === "connected" ? "Deal Me In" : "Waiting for table display..."}
         </button>
