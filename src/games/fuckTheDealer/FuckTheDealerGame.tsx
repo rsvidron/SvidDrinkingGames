@@ -34,10 +34,11 @@ function RankKeypad({
   return (
     <div
       style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(7, 1fr)",
-        gap: 8,
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 10,
         width: "100%",
+        justifyContent: "center",
       }}
     >
       {RANKS.map((r) => {
@@ -47,9 +48,12 @@ function RankKeypad({
             key={r}
             className="btn"
             style={{
-              padding: "16px 0",
-              minHeight: 60,
-              fontSize: "1.5rem",
+              // 5 per row: flex-basis of 20% minus the gap so 5 fit exactly.
+              // Wrap to 5 + 5 + 3, with the last row centered.
+              flex: "0 0 calc(20% - 8px)",
+              padding: "18px 0",
+              minHeight: 72,
+              fontSize: "1.75rem",
               fontWeight: 700,
               opacity: enabled ? 1 : 0.25,
               cursor: enabled ? "pointer" : "not-allowed",
@@ -222,7 +226,9 @@ export function FuckTheDealerGame({ publish, onRestart }: Props) {
           <h1>{isFirstGuess ? "First Guess" : `Wrong — ${hint === "higher" ? "Higher" : "Lower"}!`}</h1>
         </div>
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <PlayingCard card={card} size="md" />
+          <div style={{ transform: "scale(1.35)", transformOrigin: "center" }}>
+            <PlayingCard card={card} size="lg" />
+          </div>
         </div>
         <div className="stack" style={{ width: "100%", gap: 8 }}>
           {!isFirstGuess && (
