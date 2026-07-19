@@ -3,27 +3,21 @@ import { useHostRoom } from "../../lib/sharedRoom";
 import { FuckTheDealerSetup } from "./FuckTheDealerSetup";
 import { FuckTheDealerGame } from "./FuckTheDealerGame";
 import type { FtdSharedState } from "./sharedState";
-import type { FtdSettings } from "./types";
 
 export function FuckTheDealerPage() {
-  const [settings, setSettings] = useState<FtdSettings | null>(null);
+  const [started, setStarted] = useState(false);
+  const [gameKey, setGameKey] = useState(0);
   const room = useHostRoom<FtdSharedState>("fuck-the-dealer", true);
 
-  if (!settings) {
-    return (
-      <FuckTheDealerSetup
-        room={room}
-        onStart={(s) => setSettings(s)}
-      />
-    );
+  if (!started) {
+    return <FuckTheDealerSetup room={room} onStart={() => setStarted(true)} />;
   }
 
   return (
     <FuckTheDealerGame
-      key={JSON.stringify(settings)}
-      settings={settings}
+      key={gameKey}
       publish={room.publish}
-      onRestart={() => setSettings(null)}
+      onRestart={() => setGameKey((k) => k + 1)}
     />
   );
 }

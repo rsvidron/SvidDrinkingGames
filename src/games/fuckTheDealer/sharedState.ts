@@ -1,8 +1,6 @@
 import type { FtdHistoryEntry } from "./types";
 
 export interface FtdSharedState {
-  dealerName: string;
-  guesserName: string;
   cardsLeft: number;
   consecutiveFails: number;
   history: FtdHistoryEntry[];

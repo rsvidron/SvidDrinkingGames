@@ -203,8 +203,7 @@ export function FuckTheDealerViewer() {
             FUCK THE DEALER
           </div>
           <div style={{ fontSize: "1.05rem" }}>
-            Dealer: <strong>{state.dealerName}</strong> &middot; Guesser:{" "}
-            <strong>{state.guesserName}</strong>
+            <strong>Card counter</strong> — pass the deck around the circle
           </div>
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center", fontSize: "0.85rem" }}>
@@ -261,12 +260,10 @@ export function FuckTheDealerViewer() {
                     : "var(--correct)",
               }}
             >
-              {state.currentCardReveal.outcome === "correct1" &&
-                `${state.currentCardReveal.dealerName} drank 10s`}
-              {state.currentCardReveal.outcome === "correct2" &&
-                `${state.currentCardReveal.dealerName} drank 5s`}
+              {state.currentCardReveal.outcome === "correct1" && "dealer drank 10s"}
+              {state.currentCardReveal.outcome === "correct2" && "dealer drank 5s"}
               {state.currentCardReveal.outcome === "missed" &&
-                `${state.currentCardReveal.guesserName} drank ${state.currentCardReveal.seconds}s`}
+                `guesser drank ${state.currentCardReveal.seconds}s`}
             </span>
           </strong>
         </div>

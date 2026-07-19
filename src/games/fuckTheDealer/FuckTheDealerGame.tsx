@@ -1,22 +1,17 @@
 import { useEffect, useState } from "react";
 import { PlayingCard } from "../../components/PlayingCard";
 import { RANKS, suitSymbol, type Rank } from "../../lib/deck";
-import { directionHint, initFtd, nextGuesserIndex, rankDifference } from "./engine";
+import { directionHint, initFtd, rankDifference } from "./engine";
 import type { FtdSharedState } from "./sharedState";
-import type { FtdHistoryEntry, FtdState, FtdSettings } from "./types";
+import type { FtdHistoryEntry, FtdState } from "./types";
 
 interface Props {
-  settings: FtdSettings;
   publish: (state: FtdSharedState) => void;
   onRestart: () => void;
 }
 
 function toSharedState(state: FtdState): FtdSharedState {
-  const dealer = state.players[state.dealerIndex];
-  const guesser = state.players[state.guesserIndex];
   return {
-    dealerName: dealer?.name ?? "?",
-    guesserName: guesser?.name ?? "?",
     cardsLeft: state.deck.length,
     consecutiveFails: state.consecutiveFails,
     history: state.history,
@@ -49,7 +44,14 @@ function HistoryStrip({ history }: { history: FtdHistoryEntry[] }) {
       }}
     >
       {history.map((h, i) => {
-        const color = h.outcome === "missed" ? "var(--take)" : "var(--correct)";
+        const isCorrect = h.outcome === "correct1" || h.outcome === "correct2";
+        const color = isCorrect ? "var(--correct)" : "var(--take)";
+        const label =
+          h.outcome === "correct1"
+            ? "dealer -10s"
+            : h.outcome === "correct2"
+            ? "dealer -5s"
+            : `guesser -${h.seconds}s`;
         return (
           <div
             key={i}
@@ -64,9 +66,7 @@ function HistoryStrip({ history }: { history: FtdHistoryEntry[] }) {
           >
             <PlayingCard card={h.card} size="sm" />
             <div style={{ fontSize: "0.7rem", textAlign: "center", color, lineHeight: 1.2 }}>
-              {h.outcome === "correct1" && `${h.dealerName} -10s`}
-              {h.outcome === "correct2" && `${h.dealerName} -5s`}
-              {h.outcome === "missed" && `${h.guesserName} -${h.seconds}s`}
+              {label}
             </div>
           </div>
         );
@@ -115,15 +115,12 @@ function RankKeypad({
   );
 }
 
-export function FuckTheDealerGame({ settings, publish, onRestart }: Props) {
-  const [state, setState] = useState<FtdState>(() => initFtd(settings));
+export function FuckTheDealerGame({ publish, onRestart }: Props) {
+  const [state, setState] = useState<FtdState>(() => initFtd());
 
   useEffect(() => {
     publish(toSharedState(state));
   }, [state, publish]);
-
-  const dealer = state.players[state.dealerIndex];
-  const guesser = state.players[state.guesserIndex];
 
   function beginTurn() {
     setState((prev) => {
@@ -143,13 +140,10 @@ export function FuckTheDealerGame({ settings, publish, onRestart }: Props) {
   function submitGuess(guess: Rank) {
     setState((prev) => {
       const card = prev.currentCard!;
-      // First guess?
       if (prev.firstGuess == null) {
         if (guess === card.rank) {
           const entry: FtdHistoryEntry = {
             card,
-            dealerName: prev.players[prev.dealerIndex].name,
-            guesserName: prev.players[prev.guesserIndex].name,
             outcome: "correct1",
             seconds: 10,
             guesses: [guess],
@@ -162,16 +156,12 @@ export function FuckTheDealerGame({ settings, publish, onRestart }: Props) {
             phase: "result",
           };
         }
-        // Wrong first guess — record and move to second guess
         return { ...prev, firstGuess: guess };
       }
 
-      // Second guess
       if (guess === card.rank) {
         const entry: FtdHistoryEntry = {
           card,
-          dealerName: prev.players[prev.dealerIndex].name,
-          guesserName: prev.players[prev.guesserIndex].name,
           outcome: "correct2",
           seconds: 5,
           guesses: [prev.firstGuess!, guess],
@@ -185,14 +175,11 @@ export function FuckTheDealerGame({ settings, publish, onRestart }: Props) {
         };
       }
 
-      // Missed both
       const diffFirst = rankDifference(prev.firstGuess!, card.rank);
       const diffSecond = rankDifference(guess, card.rank);
       const seconds = Math.min(diffFirst, diffSecond);
       const entry: FtdHistoryEntry = {
         card,
-        dealerName: prev.players[prev.dealerIndex].name,
-        guesserName: prev.players[prev.guesserIndex].name,
         outcome: "missed",
         seconds,
         guesses: [prev.firstGuess!, guess],
@@ -210,29 +197,14 @@ export function FuckTheDealerGame({ settings, publish, onRestart }: Props) {
   function nextTurn() {
     setState((prev) => {
       const missedThreshold = prev.consecutiveFails >= 3;
-      let dealerIndex = prev.dealerIndex;
-      let guesserIndex = prev.guesserIndex;
-      let consecutiveFails = prev.consecutiveFails;
-      let dealerJustChanged = false;
-
-      if (missedThreshold) {
-        dealerIndex = (prev.dealerIndex + 1) % prev.players.length;
-        guesserIndex = (dealerIndex + 1) % prev.players.length;
-        consecutiveFails = 0;
-        dealerJustChanged = true;
-      } else {
-        guesserIndex = nextGuesserIndex(prev, dealerIndex, guesserIndex);
-      }
-
+      const consecutiveFails = missedThreshold ? 0 : prev.consecutiveFails;
       const isDeckEmpty = prev.deck.length === 0;
       return {
         ...prev,
-        dealerIndex,
-        guesserIndex,
         consecutiveFails,
         currentCard: null,
         firstGuess: null,
-        dealerJustChanged,
+        dealerJustChanged: missedThreshold,
         phase: isDeckEmpty ? "gameover" : "handoff",
       };
     });
@@ -259,23 +231,22 @@ export function FuckTheDealerGame({ settings, publish, onRestart }: Props) {
     return (
       <div className="screen">
         <div className="screen-header">
-          <h1>Pass the phone to {dealer.name}</h1>
+          <h1>Pass the phone to the dealer</h1>
           <p>
-            {guesser.name} is guessing &middot; {state.deck.length} cards left &middot;{" "}
-            {state.consecutiveFails}/3 fails
+            {state.deck.length} cards left &middot; {state.consecutiveFails}/3 fails
           </p>
         </div>
         <div className="stack" style={{ alignItems: "center", flex: 1, justifyContent: "center" }}>
           {state.dealerJustChanged && (
             <div className="card-panel text-center" style={{ borderColor: "var(--gold)" }}>
-              <strong style={{ color: "var(--gold)" }}>New Dealer: {dealer.name}</strong>
-              <div className="text-dim">Deck has passed. 3 fails reset.</div>
+              <strong style={{ color: "var(--gold)" }}>Deck passes to the next player!</strong>
+              <div className="text-dim">3 fails reset.</div>
             </div>
           )}
           <div className="card-panel text-center">
-            <strong>{guesser.name}, look away!</strong>
+            <strong>Guesser, look away!</strong>
             <div className="text-dim">
-              {dealer.name} peeks the card, then asks you for a rank.
+              Dealer peeks the card, then asks you for a rank.
             </div>
           </div>
           <button className="btn btn-primary btn-block" onClick={beginTurn}>
@@ -302,9 +273,6 @@ export function FuckTheDealerGame({ settings, publish, onRestart }: Props) {
       <div className="screen">
         <div className="screen-header">
           <h1>{isFirstGuess ? "First Guess" : `Wrong — ${hint === "higher" ? "Higher" : "Lower"}!`}</h1>
-          <p>
-            Dealer: {dealer.name} &middot; Guesser: {guesser.name}
-          </p>
         </div>
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ transform: "scale(1.4)", transformOrigin: "center" }}>
@@ -322,12 +290,12 @@ export function FuckTheDealerGame({ settings, publish, onRestart }: Props) {
               }}
             >
               <strong style={{ color: hint === "higher" ? "var(--give)" : "var(--take)", fontSize: "0.95rem" }}>
-                Tell {guesser.name}: {hint === "higher" ? "Higher!" : "Lower!"} (first guess {state.firstGuess})
+                Tell them: {hint === "higher" ? "Higher!" : "Lower!"} (first guess {state.firstGuess})
               </strong>
             </div>
           )}
           <div className="text-dim text-center" style={{ fontSize: "0.8rem" }}>
-            Tap the rank {guesser.name} guessed
+            Tap the rank they guessed
           </div>
           <RankKeypad allowedRanks={allowedRanks} onPick={submitGuess} />
         </div>
@@ -336,7 +304,6 @@ export function FuckTheDealerGame({ settings, publish, onRestart }: Props) {
     );
   }
 
-  // result
   const last = state.lastEntry!;
   const isMissed = last.outcome === "missed";
   const willChangeDealer = state.consecutiveFails >= 3;
@@ -364,17 +331,17 @@ export function FuckTheDealerGame({ settings, publish, onRestart }: Props) {
         >
           {last.outcome === "correct1" && (
             <strong style={{ color: "var(--correct)", fontSize: "1.4rem" }}>
-              {last.dealerName} drinks 10 seconds!
+              Dealer drinks 10 seconds!
             </strong>
           )}
           {last.outcome === "correct2" && (
             <strong style={{ color: "var(--correct)", fontSize: "1.4rem" }}>
-              {last.dealerName} drinks 5 seconds!
+              Dealer drinks 5 seconds!
             </strong>
           )}
           {last.outcome === "missed" && (
             <strong style={{ color: "var(--take)", fontSize: "1.4rem" }}>
-              {last.guesserName} drinks {last.seconds} second{last.seconds === 1 ? "" : "s"}!
+              Guesser drinks {last.seconds} second{last.seconds === 1 ? "" : "s"}!
             </strong>
           )}
         </div>
