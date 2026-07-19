@@ -9,6 +9,8 @@ const DIST = path.resolve("dist");
 const ROOM_TTL_MS = 60 * 60 * 1000; // 1 hour idle
 const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous 0/O/1/I
 const ROOM_CODE_LEN = 4;
+const HEARTBEAT_INTERVAL_MS = 25_000; // under typical proxy idle limits (~30–100s)
+const HOST_GRACE_MS = 60_000; // keep room alive this long after host disconnect for reconnect
 
 /** @type {Map<string, { hostWs: import('ws').WebSocket | null, viewerWss: Set<import('ws').WebSocket>, lastState: unknown, gameId: string, updatedAt: number }>} */
 const rooms = new Map();
@@ -89,6 +91,10 @@ function touch(room) {
   room.updatedAt = Date.now();
 }
 
+function randomToken() {
+  return Array.from({ length: 24 }, () => Math.floor(Math.random() * 36).toString(36)).join("");
+}
+
 setInterval(() => {
   const cutoff = Date.now() - ROOM_TTL_MS;
   for (const [code, room] of rooms) {
@@ -98,21 +104,52 @@ setInterval(() => {
   }
 }, 60_000);
 
+// Heartbeat: server sends WS-level pings; if a client doesn't respond by the
+// next tick, terminate. Keeps NAT/proxy idle timers happy.
+const heartbeat = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      ws.terminate();
+      return;
+    }
+    ws.isAlive = false;
+    try {
+      ws.ping();
+    } catch {
+      // ignore
+    }
+  });
+}, HEARTBEAT_INTERVAL_MS);
+
+wss.on("close", () => clearInterval(heartbeat));
+
 wss.on("connection", (ws) => {
   let role = null; // "host" | "viewer"
   let code = null;
+  ws.isAlive = true;
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
 
   ws.on("message", (raw) => {
+    ws.isAlive = true; // any app message also counts
     let msg;
     try {
       msg = JSON.parse(raw.toString());
     } catch {
       return;
     }
+    if (msg.type === "ping") {
+      send(ws, { type: "pong" });
+      return;
+    }
     if (msg.type === "createRoom") {
       code = newCode();
+      const token = randomToken();
       const room = {
         hostWs: ws,
+        hostToken: token,
+        hostGraceTimer: null,
         viewerWss: new Set(),
         lastState: null,
         gameId: msg.gameId || "unknown",
@@ -120,7 +157,26 @@ wss.on("connection", (ws) => {
       };
       rooms.set(code, room);
       role = "host";
-      send(ws, { type: "roomCreated", code, gameId: room.gameId });
+      send(ws, { type: "roomCreated", code, token, gameId: room.gameId });
+      return;
+    }
+    if (msg.type === "reclaimRoom") {
+      const c = String(msg.code || "").toUpperCase();
+      const room = rooms.get(c);
+      if (!room || room.hostToken !== msg.token) {
+        send(ws, { type: "error", error: "reclaimFailed" });
+        return;
+      }
+      if (room.hostGraceTimer) {
+        clearTimeout(room.hostGraceTimer);
+        room.hostGraceTimer = null;
+      }
+      code = c;
+      role = "host";
+      room.hostWs = ws;
+      touch(room);
+      send(ws, { type: "roomReclaimed", code, gameId: room.gameId, viewerCount: room.viewerWss.size });
+      // Ask host to re-broadcast its latest state so viewers refresh
       return;
     }
     if (msg.type === "joinRoom") {
@@ -154,7 +210,12 @@ wss.on("connection", (ws) => {
     if (!room) return;
     if (role === "host") {
       room.hostWs = null;
-      for (const v of room.viewerWss) send(v, { type: "hostLeft" });
+      // Give the host a grace window to reconnect before telling viewers.
+      room.hostGraceTimer = setTimeout(() => {
+        if (!room.hostWs) {
+          for (const v of room.viewerWss) send(v, { type: "hostLeft" });
+        }
+      }, HOST_GRACE_MS);
     } else if (role === "viewer") {
       room.viewerWss.delete(ws);
       if (room.hostWs) send(room.hostWs, { type: "viewerLeft", count: room.viewerWss.size });
