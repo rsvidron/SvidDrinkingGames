@@ -33,6 +33,14 @@ export const GAMES: GameDefinition[] = [
     available: true,
   },
   {
+    id: "piccolo",
+    name: "Piccolo",
+    tagline: "Draw a card. Do what it says. Chaos.",
+    minPlayers: 2,
+    path: "/games/piccolo/setup",
+    available: true,
+  },
+  {
     id: "ride-the-bus",
     name: "Ride the Bus",
     tagline: "Coming soon",

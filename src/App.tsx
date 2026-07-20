@@ -20,6 +20,7 @@ import { UpDownRiverPage } from "./games/upDownRiver/UpDownRiverPage";
 import { KingsCupPage } from "./games/kingsCup/KingsCupPage";
 import { FuckTheDealerPage } from "./games/fuckTheDealer/FuckTheDealerPage";
 import { FuckTheDealerViewer } from "./games/fuckTheDealer/FuckTheDealerViewer";
+import { PiccoloPage } from "./games/piccolo/PiccoloPage";
 
 function App() {
   return (
@@ -65,6 +66,14 @@ function App() {
             element={
               <AuthGuard>
                 <FuckTheDealerPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/games/piccolo/setup"
+            element={
+              <AuthGuard>
+                <PiccoloPage />
               </AuthGuard>
             }
           />

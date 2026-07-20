@@ -1,0 +1,153 @@
+import type { Prompt } from "./types";
+
+// Mild prompts always in play.
+export const MILD_PROMPTS: Prompt[] = [
+  // ---- Drink cards ----
+  { category: "drink", text: "Take a sip." },
+  { category: "drink", text: "Take two sips." },
+  { category: "drink", text: "Waterfall! Everyone starts drinking. You stop first, then the person to your left, and so on." },
+  { category: "drink", text: "The person to your left drinks 3." },
+  { category: "drink", text: "The person to your right drinks 3." },
+  { category: "drink", text: "You just picked a card. Drink for that." },
+  { category: "drink", text: "Everyone born in an even-numbered month drinks." },
+  { category: "drink", text: "Everyone with a birthday in the last 3 months drinks." },
+  { category: "drink", text: "Everyone wearing black drinks." },
+  { category: "drink", text: "Everyone wearing anything blue drinks." },
+  { category: "drink", text: "Everyone with facial hair drinks." },
+  { category: "drink", text: "Everyone with a tattoo drinks." },
+  { category: "drink", text: "Everyone with glasses drinks (contacts count)." },
+  { category: "drink", text: "The tallest person drinks 2." },
+  { category: "drink", text: "The shortest person drinks 2." },
+  { category: "drink", text: "The last person to speak drinks." },
+  { category: "drink", text: "The next person to swear drinks 3." },
+  { category: "drink", text: "The next person to check their phone drinks 3." },
+  { category: "drink", text: "Anyone still holding their phone right now drinks." },
+  { category: "drink", text: "Social! Everyone drinks together." },
+  { category: "drink", text: "Pick someone. You both drink." },
+  { category: "drink", text: "Pick two people. They both drink." },
+  { category: "drink", text: "Give out 3 drinks however you want." },
+  { category: "drink", text: "Give out 5 drinks however you want." },
+
+  // ---- Dare cards ----
+  { category: "dare", text: "Do your best celebrity impression. If nobody guesses in 30 seconds, drink 3." },
+  { category: "dare", text: "Sing the chorus of the last song you listened to. Drink 2 if you refuse." },
+  { category: "dare", text: "Do 10 pushups or drink 5." },
+  { category: "dare", text: "Do your best runway walk to the door and back. Drink 2 if you skip." },
+  { category: "dare", text: "Speak in only questions until it's your turn again. Break the rule = drink." },
+  { category: "dare", text: "Show the group the last photo in your camera roll." },
+  { category: "dare", text: "Text 'I love you' to the fifth contact in your phone. Or drink 5." },
+  { category: "dare", text: "Take a selfie with the person to your left. Post it or drink 4." },
+  { category: "dare", text: "Do your best dance move for 10 seconds." },
+  { category: "dare", text: "Call your mom and tell her you love her. Or drink 3." },
+  { category: "dare", text: "Swap seats with someone across the table." },
+  { category: "dare", text: "Do your best animal impression until someone guesses what animal it is." },
+  { category: "dare", text: "Take a shot of whatever's closest that isn't yours. Or drink 3 of your own." },
+  { category: "dare", text: "Talk in an accent until your next turn. Break it = drink 2." },
+  { category: "dare", text: "Speak only in whispers until your next turn." },
+  { category: "dare", text: "Compliment the person on your right — genuinely — then drink together." },
+  { category: "dare", text: "Everyone gets to ask you one yes/no question. Refuse to answer = drink." },
+
+  // ---- Truth cards ----
+  { category: "truth", text: "What's the worst first date you've ever been on?" },
+  { category: "truth", text: "What's a lie you've told someone in this room?" },
+  { category: "truth", text: "Rank everyone in the room by attractiveness. Drink 2 if you refuse." },
+  { category: "truth", text: "What's the pettiest reason you've held a grudge?" },
+  { category: "truth", text: "What's the most embarrassing thing in your search history?" },
+  { category: "truth", text: "What's a secret about you nobody here knows?" },
+  { category: "truth", text: "If you had to marry someone in this room, who would you pick and why?" },
+  { category: "truth", text: "What's the worst gift you've ever given someone?" },
+  { category: "truth", text: "What's the biggest lie you told to get out of work or school?" },
+  { category: "truth", text: "Confess something you did as a kid and never got caught for." },
+  { category: "truth", text: "What's your most irrational fear?" },
+  { category: "truth", text: "Who was your first celebrity crush?" },
+  { category: "truth", text: "What's a hot take you actually stand by?" },
+  { category: "truth", text: "Whose Instagram or social media do you stalk the most?" },
+  { category: "truth", text: "What's your most embarrassing drunk story? Or drink 3 to skip." },
+  { category: "truth", text: "What's the worst thing you've done to an ex?" },
+  { category: "truth", text: "If you could delete one memory forever, what would it be?" },
+  { category: "truth", text: "What's the last text you sent that you regret?" },
+
+  // ---- Group games ----
+  { category: "group", text: "Category: name a US state. Go around the circle. First to fail drinks 2." },
+  { category: "group", text: "Category: name a car brand. Go around. First to fail drinks 2." },
+  { category: "group", text: "Category: name a Disney movie. Go around. First to fail drinks 2." },
+  { category: "group", text: "Category: pick your own. Whoever picks starts. First to fail drinks 2." },
+  { category: "group", text: "Pick a word. Go around rhyming with it. First to fail or repeat drinks 3." },
+  { category: "group", text: "Never Have I Ever: everyone puts up 3 fingers. You say something you've never done. Anyone who has, drops a finger. First to hit 0 drinks." },
+  { category: "group", text: "Everyone shares their favorite drink at this table. Vote on the best. Loser drinks 2." },
+  { category: "group", text: "Everyone give the person to their right a compliment. Weakest compliment drinks (group votes)." },
+  { category: "group", text: "Categories: name a swear word. Go around. Repeat or hesitate = drink 3." },
+  { category: "group", text: "Round the room: everyone says one word to build a sentence. Whoever breaks the flow drinks 2." },
+  { category: "group", text: "Play thumb war with the person on your left. Loser drinks 2." },
+  { category: "group", text: "Rock-paper-scissors, best of 3, with the person across from you. Loser drinks 3." },
+
+  // ---- Race cards ----
+  { category: "race", text: "Last person to touch the floor drinks 2." },
+  { category: "race", text: "Last person to put a hand on their head drinks 2." },
+  { category: "race", text: "Last person to say 'CHEERS' drinks 3." },
+  { category: "race", text: "Last person to stand up drinks 2." },
+  { category: "race", text: "Last person to say the word 'PIZZA' drinks 2." },
+  { category: "race", text: "First person to blink drinks. Stare-off with the person to your left." },
+  { category: "race", text: "Last person to point at the sky drinks 2." },
+  { category: "race", text: "Race: everyone finishes their current sip. Slowest drinks 3 more." },
+
+  // ---- Chance ----
+  { category: "chance", text: "Flip a mental coin. Call heads or tails aloud. Wrong = drink 3." },
+  { category: "chance", text: "Guess a number 1-10. Person to your left picks the real number. Miss = drink 2." },
+  { category: "chance", text: "Rock-paper-scissors with everyone in sequence. Every loss = drink 1." },
+
+  // ---- Rules (persist until replaced) ----
+  { category: "rule", text: "New rule: no using anyone's first name. Break it = drink 2." },
+  { category: "rule", text: "New rule: no pointing at anyone. Break it = drink 2." },
+  { category: "rule", text: "New rule: everyone must drink with their non-dominant hand. Break it = drink 2." },
+  { category: "rule", text: "New rule: everyone must stand up before drinking. Break it = drink 2." },
+  { category: "rule", text: "New rule: no saying the word 'drink'. Break it = drink 3." },
+  { category: "rule", text: "New rule: every sentence must end in 'eh'. Break it = drink 2." },
+  { category: "rule", text: "New rule: speak only in questions. Break it = drink 2." },
+  { category: "rule", text: "New rule: raise a toast before every drink. Break it = drink 2." },
+  { category: "rule", text: "New rule: no crossing your arms or legs. Break it = drink 2." },
+  { category: "rule", text: "New rule: everyone must talk in a pirate accent. Break it = drink 3." },
+  { category: "rule", text: "New rule: no laughing. First to laugh drinks 3." },
+];
+
+// Spicier prompts — mixed in when the user opts in at setup.
+export const SPICY_PROMPTS: Prompt[] = [
+  // ---- Drink ----
+  { category: "drink", text: "Everyone who has hooked up with more than 5 people drinks." },
+  { category: "drink", text: "Everyone who's ever slept with someone in this room drinks." },
+  { category: "drink", text: "Everyone who's still a virgin drinks. (Nobody has to say anything.)" },
+  { category: "drink", text: "Everyone who's been fired from a job drinks." },
+  { category: "drink", text: "Everyone who's cheated on someone drinks. (No confession required.)" },
+  { category: "drink", text: "Everyone who's been arrested drinks 2." },
+  { category: "drink", text: "Everyone who's puked in the last month drinks." },
+  { category: "drink", text: "Everyone who's slept with their ex's friend drinks 3." },
+
+  // ---- Dare ----
+  { category: "dare", text: "Take a shot with the sexiest person in the room (you pick)." },
+  { category: "dare", text: "Give a lap dance to the person on your right for 10 seconds. Or drink 5." },
+  { category: "dare", text: "Kiss the person to your left on the cheek. Or drink 4." },
+  { category: "dare", text: "Take off one item of clothing. Or drink 4." },
+  { category: "dare", text: "Text your ex 'thinking of you' — no context. Or drink 5." },
+  { category: "dare", text: "Let the person on your right pick your next drink." },
+  { category: "dare", text: "Sit on the lap of the person to your left until your next turn. Refuse = drink 4." },
+  { category: "dare", text: "Show the group your most recent DM. Skip = drink 5." },
+
+  // ---- Truth ----
+  { category: "truth", text: "Body count. Say the number out loud or drink 5." },
+  { category: "truth", text: "Have you ever hooked up with someone whose name you didn't know?" },
+  { category: "truth", text: "What's the weirdest place you've hooked up?" },
+  { category: "truth", text: "Rank the people in this room by who you'd sleep with, worst to best. Refuse = drink 5." },
+  { category: "truth", text: "Have you ever ghosted someone? How many people?" },
+  { category: "truth", text: "What's the biggest turn-off someone has done during sex?" },
+  { category: "truth", text: "Have you ever faked it? Or drink 3." },
+  { category: "truth", text: "What's the pettiest reason you dumped someone?" },
+  { category: "truth", text: "Have you ever hooked up with a co-worker? Boss?" },
+  { category: "truth", text: "Confess a kink you've never told anyone. Or drink 5." },
+  { category: "truth", text: "Who in this room would you sleep with if you were single?" },
+  { category: "truth", text: "What's the worst thing you've done in a relationship?" },
+
+  // ---- Rules ----
+  { category: "rule", text: "New rule: every time someone laughs, they drink 2. Runs until replaced." },
+  { category: "rule", text: "New rule: nobody can say 'I' or 'me'. Break it = drink 3." },
+  { category: "rule", text: "New rule: everyone must speak in single words. Break it = drink 3." },
+];
