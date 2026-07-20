@@ -18,6 +18,11 @@ export function AdminLayout() {
         <div className="admin-sidebar__brand">
           🛡️ <strong>Admin</strong>
         </div>
+
+        <Link to="/" className="admin-nav__back">
+          ← Back to games
+        </Link>
+
         <nav className="admin-nav">
           {NAV.map((item) => {
             const active =
@@ -42,9 +47,6 @@ export function AdminLayout() {
           <div style={{ fontSize: "0.85rem", wordBreak: "break-all", marginBottom: 12 }}>
             {profile?.email}
           </div>
-          <Link to="/" className="btn btn-block" style={{ marginBottom: 8 }}>
-            ← Back to app
-          </Link>
           <button
             className="btn btn-block"
             style={{ borderColor: "var(--wrong)", color: "var(--wrong)" }}

@@ -21,6 +21,26 @@
   margin-bottom: 16px;
 }
 
+.admin-nav__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background 0.15s ease;
+}
+
+.admin-nav__back:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .admin-nav {
   display: flex;
   flex-direction: column;
@@ -180,6 +200,13 @@
     border-right: none;
     border-bottom: 1px solid var(--border);
     padding: 12px;
+  }
+  .admin-sidebar__brand {
+    padding: 4px 8px 12px;
+    margin-bottom: 10px;
+  }
+  .admin-nav__back {
+    margin-bottom: 10px;
   }
   .admin-nav {
     flex-direction: row;
