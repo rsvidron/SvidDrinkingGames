@@ -11,6 +11,11 @@ import { Terms } from "./pages/legal/Terms";
 import { Privacy } from "./pages/legal/Privacy";
 import { CheckoutSuccess } from "./pages/CheckoutSuccess";
 import { CheckoutCancel } from "./pages/CheckoutCancel";
+import { AdminGuard } from "./components/AdminGuard";
+import { AdminLayout } from "./pages/admin/AdminLayout";
+import { AdminUsers } from "./pages/admin/Users";
+import { AdminLicenseKeys } from "./pages/admin/LicenseKeys";
+import { AdminFreeWeekend } from "./pages/admin/FreeWeekend";
 import { UpDownRiverPage } from "./games/upDownRiver/UpDownRiverPage";
 import { KingsCupPage } from "./games/kingsCup/KingsCupPage";
 import { FuckTheDealerPage } from "./games/fuckTheDealer/FuckTheDealerPage";
@@ -63,6 +68,21 @@ function App() {
               </AuthGuard>
             }
           />
+
+          {/* Admin portal — nested routes share the sidebar layout */}
+          <Route
+            path="/admin"
+            element={
+              <AdminGuard>
+                <AdminLayout />
+              </AdminGuard>
+            }
+          >
+            <Route index element={<AdminUsers />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="keys" element={<AdminLicenseKeys />} />
+            <Route path="free-weekend" element={<AdminFreeWeekend />} />
+          </Route>
           </Routes>
         </BrowserRouter>
       </AccessProvider>
