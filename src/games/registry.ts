@@ -41,6 +41,14 @@ export const GAMES: GameDefinition[] = [
     available: true,
   },
   {
+    id: "horse-race",
+    name: "Horse Race",
+    tagline: "Pick a suit. First horse across the line wins.",
+    minPlayers: 2,
+    path: "/games/horse-race/setup",
+    available: true,
+  },
+  {
     id: "ride-the-bus",
     name: "Ride the Bus",
     tagline: "Coming soon",

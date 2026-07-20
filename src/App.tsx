@@ -21,6 +21,7 @@ import { KingsCupPage } from "./games/kingsCup/KingsCupPage";
 import { FuckTheDealerPage } from "./games/fuckTheDealer/FuckTheDealerPage";
 import { FuckTheDealerViewer } from "./games/fuckTheDealer/FuckTheDealerViewer";
 import { PiccoloPage } from "./games/piccolo/PiccoloPage";
+import { HorseRacePage } from "./games/horseRace/HorseRacePage";
 
 function App() {
   return (
@@ -74,6 +75,14 @@ function App() {
             element={
               <AuthGuard>
                 <PiccoloPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/games/horse-race/setup"
+            element={
+              <AuthGuard>
+                <HorseRacePage />
               </AuthGuard>
             }
           />
