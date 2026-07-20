@@ -11,9 +11,10 @@ function shuffle<T>(items: T[]): T[] {
 }
 
 export function initPiccolo(settings: PiccoloSettings): PiccoloState {
-  const pool: Prompt[] = settings.spicy
+  const rawPool: Prompt[] = settings.spicy
     ? [...MILD_PROMPTS, ...SPICY_PROMPTS]
     : [...MILD_PROMPTS];
+  const pool = rawPool.filter((p) => settings.categories[p.category] !== false);
   return {
     deck: shuffle(pool),
     currentPrompt: null,
