@@ -41,7 +41,7 @@ const SUIT_COLOR: Record<Suit, string> = {
   spades: "#14151a",
 };
 
-function Track({
+function VerticalTrack({
   state,
   suit,
   playerName,
@@ -52,7 +52,8 @@ function Track({
 }) {
   const pos = state.positions[suit] ?? 0;
   const cells: React.ReactNode[] = [];
-  for (let i = 0; i <= state.raceLength; i += 1) {
+  // Top row is the finish line, bottom row is the start. Iterate high → low.
+  for (let i = state.raceLength; i >= 0; i -= 1) {
     const isHere = i === pos;
     const isFinish = i === state.raceLength;
     cells.push(
@@ -60,8 +61,7 @@ function Track({
         key={i}
         style={{
           flex: 1,
-          minWidth: 28,
-          height: 44,
+          minHeight: 30,
           border: "1px dashed var(--border)",
           borderRadius: 6,
           display: "flex",
@@ -70,12 +70,12 @@ function Track({
           background: isHere
             ? "#f5f2ea"
             : isFinish
-            ? "rgba(255, 209, 102, 0.08)"
+            ? "rgba(255, 209, 102, 0.10)"
             : "transparent",
           color: isHere ? SUIT_COLOR[suit] : "var(--text-dim)",
           fontWeight: 700,
-          fontSize: isHere ? "1.1rem" : "0.85rem",
-          transition: "background 0.15s ease",
+          fontSize: isHere ? "0.95rem" : "0.8rem",
+          transition: "background 0.15s ease, transform 0.15s ease",
         }}
       >
         {isHere ? `A${suitSymbol(suit)}` : isFinish ? "🏁" : ""}
@@ -83,27 +83,52 @@ function Track({
     );
   }
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        minWidth: 0,
+      }}
+    >
       <div
         style={{
+          flex: 1,
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          fontSize: "0.85rem",
-          marginBottom: 4,
+          flexDirection: "column",
+          gap: 3,
+          marginBottom: 6,
         }}
       >
-        <strong>
-          <span style={{ color: SUIT_COLOR[suit] === "#c1121f" ? "var(--wrong)" : "var(--text)" }}>
-            {suitSymbol(suit)}
-          </span>{" "}
-          {playerName}
-        </strong>
-        <span className="text-dim">
-          {pos}/{state.raceLength}
-        </span>
+        {cells}
       </div>
-      <div style={{ display: "flex", gap: 4 }}>{cells}</div>
+      <div
+        style={{
+          textAlign: "center",
+          fontSize: "0.8rem",
+          fontWeight: 600,
+          lineHeight: 1.2,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        <span
+          style={{
+            color: SUIT_COLOR[suit] === "#c1121f" ? "var(--wrong)" : "var(--text)",
+            marginRight: 3,
+          }}
+        >
+          {suitSymbol(suit)}
+        </span>
+        {playerName}
+      </div>
+      <div
+        className="text-dim"
+        style={{ textAlign: "center", fontSize: "0.7rem" }}
+      >
+        {pos}/{state.raceLength}
+      </div>
     </div>
   );
 }
@@ -172,9 +197,17 @@ export function HorseRaceGame({ settings, onMenuRestart }: Props) {
               give out 5 drinks.
             </p>
           </div>
-          <div className="stack" style={{ marginTop: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              marginTop: 12,
+              flex: 1,
+              minHeight: 300,
+            }}
+          >
             {state.players.map((p) => (
-              <Track
+              <VerticalTrack
                 key={p.suit}
                 state={state}
                 suit={p.suit}
@@ -182,7 +215,6 @@ export function HorseRaceGame({ settings, onMenuRestart }: Props) {
               />
             ))}
           </div>
-          <div className="spacer" />
           <button className="btn btn-primary btn-block" onClick={onMenuRestart}>
             Race Again
           </button>
@@ -202,9 +234,17 @@ export function HorseRaceGame({ settings, onMenuRestart }: Props) {
           </p>
         </div>
 
-        <div className="stack" style={{ marginTop: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            marginTop: 4,
+            flex: 1,
+            minHeight: 0,
+          }}
+        >
           {state.players.map((p) => (
-            <Track
+            <VerticalTrack
               key={p.suit}
               state={state}
               suit={p.suit}
@@ -215,7 +255,7 @@ export function HorseRaceGame({ settings, onMenuRestart }: Props) {
 
         <div
           className="stack"
-          style={{ alignItems: "center", flex: 1, justifyContent: "center", gap: 12 }}
+          style={{ alignItems: "center", gap: 10, marginTop: 12 }}
         >
           <LastCardOrBack card={state.lastCard} />
           <button
