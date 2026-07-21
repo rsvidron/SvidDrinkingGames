@@ -49,6 +49,14 @@ export const GAMES: GameDefinition[] = [
     available: true,
   },
   {
+    id: "war",
+    name: "War",
+    tagline: "1 vs 1. High card wins. Loser drinks.",
+    minPlayers: 2,
+    path: "/games/war/setup",
+    available: true,
+  },
+  {
     id: "ride-the-bus",
     name: "Ride the Bus",
     tagline: "Coming soon",
