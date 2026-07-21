@@ -3,10 +3,11 @@ import type { HrSettings, HrState } from "./types";
 
 /**
  * Suits currently in the race. If only 2 people play with hearts and spades,
- * only those suits are in the deck and on the track.
+ * only those suits are in the deck and on the track. Deduped so multiple
+ * players sharing a suit still map to a single horse.
  */
 export function activeSuits(settings: HrSettings): Suit[] {
-  return settings.players.map((p) => p.suit);
+  return Array.from(new Set(settings.players.map((p) => p.suit)));
 }
 
 /**
@@ -45,8 +46,8 @@ export function initHorseRace(settings: HrSettings): HrState {
     lastCard: null,
     lastMovedSuit: null,
     soleLastSuit: findSoleLast(positions),
-    drinker: null,
-    winner: null,
+    drinkerSuit: null,
+    winnerSuit: null,
     phase: "playing",
   };
 }

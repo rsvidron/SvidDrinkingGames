@@ -20,7 +20,7 @@ export interface HrState {
   lastCard: Card | null;
   lastMovedSuit: Suit | null;
   soleLastSuit: Suit | null; // whichever suit is currently in solo last place, or null if tied
-  drinker: HrPlayer | null; // set when a NEW horse falls into solo last place
-  winner: HrPlayer | null;
+  drinkerSuit: Suit | null; // set when a NEW horse falls into solo last place
+  winnerSuit: Suit | null;
   phase: HrPhase;
 }

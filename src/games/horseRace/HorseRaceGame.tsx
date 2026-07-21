@@ -2,7 +2,7 @@ import { useState } from "react";
 import { GameMenu } from "../../components/GameMenu";
 import { PlayingCard } from "../../components/PlayingCard";
 import { suitSymbol, type Card, type Suit } from "../../lib/deck";
-import { findSoleLast, initHorseRace } from "./engine";
+import { activeSuits, findSoleLast, initHorseRace } from "./engine";
 import type { HrSettings, HrState } from "./types";
 
 interface Props {
@@ -138,8 +138,8 @@ export function HorseRaceGame({ settings, onMenuRestart }: Props) {
 
   const menu = <GameMenu gameTitle="Horse Race" rules={HR_RULES} onRestart={onMenuRestart} />;
 
-  function playerOf(suit: Suit) {
-    return state.players.find((p) => p.suit === suit) ?? null;
+  function playersOf(suit: Suit) {
+    return state.players.filter((p) => p.suit === suit);
   }
 
   function drawCard() {
@@ -155,17 +155,13 @@ export function HorseRaceGame({ settings, onMenuRestart }: Props) {
 
       // Winner?
       const finish = prev.raceLength;
-      let winner = null as HrState["winner"];
-      if (newPositions[card.suit] >= finish) {
-        winner = playerOf(card.suit);
-      }
+      const winnerSuit = newPositions[card.suit] >= finish ? card.suit : null;
 
-      // New sole-last player?
+      // New sole-last suit?
       const prevSoleLast = prev.soleLastSuit;
       const newSoleLast = findSoleLast(newPositions);
-      const drinkerSuit =
+      const newDrinkerSuit =
         newSoleLast && newSoleLast !== prevSoleLast ? newSoleLast : null;
-      const drinker = drinkerSuit ? playerOf(drinkerSuit) : null;
 
       return {
         ...prev,
@@ -174,27 +170,38 @@ export function HorseRaceGame({ settings, onMenuRestart }: Props) {
         lastCard: card,
         lastMovedSuit: card.suit,
         soleLastSuit: newSoleLast,
-        drinker,
-        winner,
-        phase: winner ? "gameover" : "playing",
+        drinkerSuit: newDrinkerSuit,
+        winnerSuit,
+        phase: winnerSuit ? "gameover" : "playing",
       };
     });
   }
 
   function dismissDrinker() {
-    setState((prev) => ({ ...prev, drinker: null }));
+    setState((prev) => ({ ...prev, drinkerSuit: null }));
+  }
+
+  function nameList(suit: Suit): string {
+    const names = playersOf(suit).map((p) => p.name);
+    if (names.length <= 1) return names[0] ?? "";
+    if (names.length === 2) return `${names[0]} & ${names[1]}`;
+    return `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
   }
 
   if (state.phase === "gameover") {
+    const winnerSuit = state.winnerSuit!;
+    const winners = playersOf(winnerSuit);
     return (
       <>
         {menu}
         <div className="screen">
           <div className="screen-header">
-            <h1>🏆 {state.winner?.name} wins!</h1>
+            <h1>
+              🏆 {nameList(winnerSuit)} win{winners.length === 1 ? "s" : ""}!
+            </h1>
             <p>
-              {suitSymbol(state.winner!.suit)} crossed the finish line first —
-              give out 5 drinks.
+              {suitSymbol(winnerSuit)} crossed the finish line first — give
+              out 5 drinks{winners.length > 1 ? " (split it however)" : ""}.
             </p>
           </div>
           <div
@@ -206,14 +213,16 @@ export function HorseRaceGame({ settings, onMenuRestart }: Props) {
               minHeight: 300,
             }}
           >
-            {state.players.map((p) => (
-              <VerticalTrack
-                key={p.suit}
-                state={state}
-                suit={p.suit}
-                playerName={p.name}
-              />
-            ))}
+            {activeSuits({ players: state.players, raceLength: state.raceLength }).map(
+              (suit) => (
+                <VerticalTrack
+                  key={suit}
+                  state={state}
+                  suit={suit}
+                  playerName={nameList(suit)}
+                />
+              )
+            )}
           </div>
           <button className="btn btn-primary btn-block" onClick={onMenuRestart}>
             Race Again
@@ -243,14 +252,16 @@ export function HorseRaceGame({ settings, onMenuRestart }: Props) {
             minHeight: 0,
           }}
         >
-          {state.players.map((p) => (
-            <VerticalTrack
-              key={p.suit}
-              state={state}
-              suit={p.suit}
-              playerName={p.name}
-            />
-          ))}
+          {activeSuits({ players: state.players, raceLength: state.raceLength }).map(
+            (suit) => (
+              <VerticalTrack
+                key={suit}
+                state={state}
+                suit={suit}
+                playerName={nameList(suit)}
+              />
+            )
+          )}
         </div>
 
         <div
@@ -267,7 +278,7 @@ export function HorseRaceGame({ settings, onMenuRestart }: Props) {
           </button>
         </div>
 
-        {state.drinker && (
+        {state.drinkerSuit && (
           <div className="modal-backdrop" onClick={dismissDrinker}>
             <div
               className="modal-card"
@@ -276,10 +287,11 @@ export function HorseRaceGame({ settings, onMenuRestart }: Props) {
             >
               <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>🥴</div>
               <strong style={{ fontSize: "2rem", color: "var(--take)" }}>
-                {state.drinker.name}
+                {nameList(state.drinkerSuit)}
               </strong>
               <div style={{ marginTop: 8 }}>
-                {suitSymbol(state.drinker.suit)} just fell into last — drink 1!
+                {suitSymbol(state.drinkerSuit)} just fell into last — drink 1
+                {playersOf(state.drinkerSuit).length > 1 ? " each" : ""}!
               </div>
               <button
                 className="btn btn-primary btn-block"

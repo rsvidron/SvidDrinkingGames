@@ -20,8 +20,9 @@ interface DraftPlayer {
   suit: Suit | null;
 }
 
-function nextFreeSuit(picks: (Suit | null)[]): Suit | null {
-  return SUITS.find((s) => !picks.includes(s)) ?? null;
+function nextFreeSuit(picks: (Suit | null)[]): Suit {
+  const remaining = SUITS.find((s) => !picks.includes(s));
+  return remaining ?? SUITS[picks.length % SUITS.length];
 }
 
 export function HorseRaceSetup({ onStart }: Props) {
@@ -32,7 +33,7 @@ export function HorseRaceSetup({ onStart }: Props) {
   const [raceLength, setRaceLength] = useState(7);
 
   function setCount(n: number) {
-    const clamped = Math.max(2, Math.min(4, n));
+    const clamped = Math.max(2, Math.min(12, n));
     setPlayers((prev) => {
       const next = [...prev];
       while (next.length < clamped) {
@@ -57,14 +58,14 @@ export function HorseRaceSetup({ onStart }: Props) {
     );
   }
 
-  const takenBy: Partial<Record<Suit, number>> = {};
-  players.forEach((p, i) => {
-    if (p.suit) takenBy[p.suit] = i;
+  // Count how many players are on each suit — used to badge shared suits.
+  const suitCounts: Record<Suit, number> = { hearts: 0, diamonds: 0, clubs: 0, spades: 0 };
+  players.forEach((p) => {
+    if (p.suit) suitCounts[p.suit] += 1;
   });
+  const uniqueSuitCount = SUITS.filter((s) => suitCounts[s] > 0).length;
 
-  const allValid =
-    players.every((p) => p.name.trim().length > 0 && p.suit !== null) &&
-    new Set(players.map((p) => p.suit)).size === players.length;
+  const allValid = players.every((p) => p.name.trim().length > 0 && p.suit !== null);
 
   return (
     <div className="screen">
@@ -79,7 +80,8 @@ export function HorseRaceSetup({ onStart }: Props) {
             <div>
               <strong>Players</strong>
               <div className="text-dim" style={{ fontSize: "0.85rem" }}>
-                Each player picks a unique suit
+                Up to 4 unique horses. 5+ players share suits and drink
+                together.
               </div>
             </div>
             <div className="row" style={{ gap: 8 }}>
@@ -98,7 +100,7 @@ export function HorseRaceSetup({ onStart }: Props) {
                 className="btn"
                 style={{ minHeight: 40, padding: "8px 14px" }}
                 onClick={() => setCount(players.length + 1)}
-                disabled={players.length >= 4}
+                disabled={players.length >= 12}
               >
                 +
               </button>
@@ -127,14 +129,14 @@ export function HorseRaceSetup({ onStart }: Props) {
                 />
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
                   {SUITS.map((s) => {
-                    const owner = takenBy[s];
-                    const takenByOther = owner !== undefined && owner !== i;
                     const picked = p.suit === s;
+                    const suitCount = suitCounts[s];
+                    // Show "N" badge only if this suit is shared with another player.
+                    const showShareBadge = suitCount > 1;
                     return (
                       <button
                         key={s}
                         className="btn"
-                        disabled={takenByOther}
                         onClick={() => updateSuit(i, s)}
                         style={{
                           minHeight: 44,
@@ -142,18 +144,42 @@ export function HorseRaceSetup({ onStart }: Props) {
                           background: picked ? "#f5f2ea" : "var(--bg-elevated)",
                           borderColor: picked ? "#f5f2ea" : "var(--border)",
                           color: picked ? SUIT_COLOR[s] : "var(--text)",
-                          opacity: takenByOther ? 0.3 : 1,
                           fontSize: "1.1rem",
                           fontWeight: 700,
+                          position: "relative",
                         }}
                       >
                         {suitSymbol(s)}
+                        {showShareBadge && (
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: 2,
+                              right: 4,
+                              fontSize: "0.6rem",
+                              color: picked ? SUIT_COLOR[s] : "var(--text-dim)",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {suitCount}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
                 </div>
               </div>
             ))}
+          </div>
+
+          <div
+            className="text-dim"
+            style={{ fontSize: "0.8rem", marginTop: 12 }}
+          >
+            {uniqueSuitCount} horse{uniqueSuitCount === 1 ? "" : "s"} racing
+            {players.length > uniqueSuitCount
+              ? ` · ${players.length - uniqueSuitCount} sharing`
+              : ""}
           </div>
         </div>
 
@@ -198,10 +224,10 @@ export function HorseRaceSetup({ onStart }: Props) {
             advances 1
             <br />
             • Whenever a new horse falls into <strong>solo last place</strong>,
-            that player drinks 1
+            everyone on that suit drinks 1
             <br />
-            • First horse across the finish line wins — that player gives out
-            5 drinks
+            • First horse across the finish line wins — those players give
+            out 5 drinks
           </div>
         </div>
       </div>
@@ -219,7 +245,7 @@ export function HorseRaceSetup({ onStart }: Props) {
             })
           }
         >
-          {allValid ? "Start the Race" : "Give each player a unique suit"}
+          {allValid ? "Start the Race" : "Give each player a suit"}
         </button>
         <Link to="/" className="btn btn-ghost btn-block text-center">
           Back to games
