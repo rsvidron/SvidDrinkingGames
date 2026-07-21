@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GameMenu } from "../../components/GameMenu";
 import { PlayingCard } from "../../components/PlayingCard";
 import { canDeclareWar, canFlip, compareRanks, initWar } from "./engine";
@@ -35,6 +35,28 @@ const WAR_RULES = (
 export function WarGame({ settings, onMenuRestart }: Props) {
   const [state, setState] = useState<WarState>(() => initWar(settings));
   const [pendingTaps, setPendingTaps] = useState<[boolean, boolean]>([false, false]);
+
+  // Fit the card to whatever vertical space is left in the card slot.
+  // Both halves have identical layouts, so we measure one and use its
+  // dimensions for both cards.
+  const cardSlotRef = useRef<HTMLDivElement>(null);
+  // Start small so the first paint never overflows; ResizeObserver grows it.
+  const [cardHeight, setCardHeight] = useState(80);
+  useEffect(() => {
+    const el = cardSlotRef.current;
+    if (!el) return;
+    const measure = () => {
+      const h = el.clientHeight - 12; // leave breathing room for the border
+      const w = el.clientWidth - 12;
+      const heightFromWidth = w * (196 / 140); // enforce 5:7 ratio
+      const fitted = Math.min(h, heightFromWidth);
+      setCardHeight(Math.max(60, fitted));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const settingsPane = (
     <WarSettingsPane
       tapMode={state.tapMode}
@@ -358,6 +380,7 @@ export function WarGame({ settings, onMenuRestart }: Props) {
       >
         {/* Card fills the space closest to the center divider */}
         <div
+          ref={playerIdx === 1 ? cardSlotRef : undefined}
           style={{
             flex: 1,
             display: "flex",
@@ -378,7 +401,7 @@ export function WarGame({ settings, onMenuRestart }: Props) {
             <PlayingCard
               card={showCard && playerCard ? playerCard : undefined}
               faceDown={!showCard || !playerCard}
-              size="lg"
+              pixelHeight={cardHeight}
             />
           </div>
         </div>
@@ -401,7 +424,15 @@ export function WarGame({ settings, onMenuRestart }: Props) {
   return (
     <>
       {menu}
-      <div className="screen" style={{ padding: "8px 12px" }}>
+      <div
+        className="screen"
+        style={{
+          padding: "8px 12px",
+          height: "100dvh",
+          maxHeight: "100dvh",
+          overflow: "hidden",
+        }}
+      >
         {/* Top half — rotated 180 for the player at the far end */}
         <div style={{ transform: "rotate(180deg)", flex: 1, display: "flex", minHeight: 0 }}>
           {half(0)}
