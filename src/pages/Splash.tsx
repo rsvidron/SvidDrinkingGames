@@ -199,24 +199,37 @@ export function Splash() {
               </div>
             </div>
 
-            <div className="splash-game splash-game--horse">
+            <div className="splash-game splash-game--war">
               <div className="splash-game__visual">
-                <div style={{ display: "flex", gap: 6 }}>
-                  <div className="mini-card mini-card--red">A♥</div>
-                  <div className="mini-card mini-card--red">A♦</div>
-                  <div className="mini-card">A♣</div>
-                  <div className="mini-card">A♠</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div className="mini-card mini-card--red">K♥</div>
+                  <div style={{ fontSize: "1.4rem" }}>⚔</div>
+                  <div className="mini-card">K♠</div>
                 </div>
               </div>
-              <h3 className="splash-game__title">Horse Race</h3>
+              <h3 className="splash-game__title">War</h3>
               <p className="splash-game__desc">
-                Each player picks a suit. Cards flip, the matching ace runs
-                forward. Whoever falls into last place drinks — first to the
-                finish line gives out 5.
+                1 vs 1, one phone between you. High card wins the hand, loser
+                drinks. Tied ranks trigger a WAR — burn three, flip one, higher
+                takes the pot. Simple or Traditional deck.
               </p>
               <div className="splash-game__meta">
-                <span>👥 2–4 players</span>
+                <span>👥 2 players</span>
                 <span>📱 1 phone</span>
+              </div>
+            </div>
+
+            <div className="splash-game splash-game--more">
+              <div className="splash-game__visual">
+                <div style={{ fontSize: "2.2rem", opacity: 0.75 }}>…</div>
+              </div>
+              <h3 className="splash-game__title">& more games</h3>
+              <p className="splash-game__desc">
+                Horse Race, Ride the Bus, and whatever we ship next. Lifetime
+                holders get every future game at no extra cost.
+              </p>
+              <div className="splash-game__meta">
+                <span>🚧 Rotating lineup</span>
               </div>
             </div>
           </div>
