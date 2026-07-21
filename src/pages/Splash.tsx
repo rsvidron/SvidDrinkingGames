@@ -26,9 +26,9 @@ export function Splash() {
             <span className="splash-hero__title-accent">without the deck.</span>
           </h1>
           <p className="splash-hero__sub">
-            Five drinking games that live on your phone. Pass it around the
-            circle, hit up the second-screen table display, and let the deck do
-            the work.
+            A deck of drinking games that lives on your phone. Pass it around
+            the circle, hit up the second-screen table display, and let the
+            phone do the dealing.
           </p>
           <div className="splash-hero__ctas">
             <Link to="/signup" className="btn btn-primary splash-btn">
@@ -56,7 +56,7 @@ export function Splash() {
             </div>
             <div className="splash-feature">
               <div className="splash-feature__icon">🎴</div>
-              <div className="splash-feature__title">Five full games</div>
+              <div className="splash-feature__title">A full deck of games</div>
               <p className="splash-feature__text">
                 Classic drinking cards, reimagined for a phone at a bar table.
               </p>
@@ -82,7 +82,7 @@ export function Splash() {
 
         {/* Games */}
         <section className="splash-section" id="games">
-          <h2 className="splash-section__title">Five games. More on the way.</h2>
+          <h2 className="splash-section__title">A whole deck of games.</h2>
           <p className="splash-section__sub">
             Every game is tuned for a phone getting passed around a bar table.
             No score cards, no rulebooks — the phone runs the game.
@@ -249,7 +249,7 @@ export function Splash() {
             <div className="splash-step">
               <h3 className="splash-step__title">Pick a game</h3>
               <p className="splash-step__text">
-                Home screen shows all four games. Tap in, set up your table
+                Home screen shows the full deck. Tap in, set up your table
                 (players, spiciness, whatever), and you're dealing.
               </p>
             </div>
@@ -279,7 +279,7 @@ export function Splash() {
                 <span className="splash-price__amount-unit">/ 24 hours</span>
               </div>
               <ul className="splash-price__list">
-                <li>All five games</li>
+                <li>The whole deck of games</li>
                 <li>Everything unlocks for 24 hours</li>
                 <li>Great for a single bar night</li>
               </ul>
@@ -296,7 +296,7 @@ export function Splash() {
                 <span className="splash-price__amount-unit">/ forever</span>
               </div>
               <ul className="splash-price__list">
-                <li>All five games, forever</li>
+                <li>The whole deck, forever</li>
                 <li>Every future game we ship</li>
                 <li>7-day refund window if it's not for you</li>
               </ul>
