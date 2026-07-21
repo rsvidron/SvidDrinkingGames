@@ -198,115 +198,135 @@ export function WarGame({ settings, onMenuRestart }: Props) {
   const inWar = state.phase === "war";
   const revealed = state.phase === "revealed";
 
+  function highlightFor(playerIdx: 0 | 1): "win" | "lose" | null {
+    if (!revealed || !state.lastResult) return null;
+    if (state.lastResult.winner === playerIdx) return "win";
+    if (state.lastResult.loser === playerIdx) return "lose";
+    return null;
+  }
+
+  function actionButton() {
+    if (state.phase === "ready") {
+      return (
+        <button
+          className="btn btn-primary btn-block"
+          onClick={flipInitial}
+          disabled={!canFlip(state.deck)}
+        >
+          Flip Cards
+        </button>
+      );
+    }
+    if (state.phase === "war") {
+      return (
+        <button
+          className="btn btn-block"
+          style={{
+            background: "var(--gold)",
+            borderColor: "var(--gold)",
+            color: "#3a2c00",
+          }}
+          onClick={declareWar}
+          disabled={!canDeclareWar(state.deck)}
+        >
+          {canDeclareWar(state.deck) ? "⚔ Declare War" : "Not enough cards left"}
+        </button>
+      );
+    }
+    // revealed
+    return (
+      <button
+        className="btn btn-primary btn-block"
+        onClick={nextHand}
+        disabled={!canFlip(state.deck)}
+      >
+        {canFlip(state.deck) ? "Next Hand" : "Finish"}
+      </button>
+    );
+  }
+
+  function resultBanner() {
+    if (!revealed || !state.lastResult) return null;
+    return (
+      <div
+        className="card-panel text-center"
+        style={{
+          borderColor: state.lastResult.wasWar ? "var(--gold)" : "var(--take)",
+        }}
+      >
+        <strong
+          style={{
+            color: state.lastResult.wasWar ? "var(--gold)" : "var(--take)",
+            fontSize: "1.1rem",
+          }}
+        >
+          {state.lastResult.wasWar ? "⚔ War won by " : ""}
+          {state.players[state.lastResult.winner].name}
+        </strong>
+        <div style={{ marginTop: 4, fontSize: "0.9rem" }}>
+          {state.players[state.lastResult.loser].name} drinks{" "}
+          {state.lastResult.drinksLost}
+        </div>
+      </div>
+    );
+  }
+
+  // Each half owns one player's row + a mirrored result banner + action button.
+  // Top half is rotated 180° so the player sitting at that end sees it upright.
+  const half = (playerIdx: 0 | 1) => (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-around",
+        gap: 12,
+        padding: "8px 0",
+        minHeight: 0,
+      }}
+    >
+      {actionButton()}
+      {resultBanner()}
+      <PlayerRow
+        name={state.players[playerIdx].name}
+        drinks={state.drinks[playerIdx]}
+        card={playerIdx === 0 ? state.p1Card : state.p2Card}
+        revealed={revealed || inWar}
+        highlight={highlightFor(playerIdx)}
+      />
+    </div>
+  );
+
   return (
     <>
       {menu}
-      <div className="screen">
-        <div className="screen-header">
-          <h1>War</h1>
-          <p>
-            {state.deck.length} cards left &middot; hand {state.handsPlayed + (state.phase === "ready" ? 1 : 0)}
-          </p>
+      <div className="screen" style={{ padding: "8px 12px" }}>
+        {/* Top half — rotated 180 for the player at the far end */}
+        <div style={{ transform: "rotate(180deg)", flex: 1, display: "flex", minHeight: 0 }}>
+          {half(0)}
         </div>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-around", gap: 12 }}>
-          <PlayerRow
-            name={state.players[0].name}
-            drinks={state.drinks[0]}
-            card={state.p1Card}
-            revealed={revealed || inWar}
-            highlight={
-              revealed && state.lastResult
-                ? state.lastResult.winner === 0
-                  ? "win"
-                  : state.lastResult.loser === 0
-                  ? "lose"
-                  : null
-                : null
-            }
-          />
-
-          <div className="text-dim text-center" style={{ fontSize: "1.05rem", fontWeight: 700, letterSpacing: 2 }}>
+        {/* Center strip — game status shared by both */}
+        <div
+          style={{
+            borderTop: "1px solid var(--border)",
+            borderBottom: "1px solid var(--border)",
+            padding: "10px 0",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontWeight: 700, letterSpacing: 2 }}>
             {inWar ? "⚔ TIED ⚔" : "VS"}
           </div>
-
-          <PlayerRow
-            name={state.players[1].name}
-            drinks={state.drinks[1]}
-            card={state.p2Card}
-            revealed={revealed || inWar}
-            highlight={
-              revealed && state.lastResult
-                ? state.lastResult.winner === 1
-                  ? "win"
-                  : state.lastResult.loser === 1
-                  ? "lose"
-                  : null
-                : null
-            }
-          />
+          <div className="text-dim" style={{ fontSize: "0.7rem", marginTop: 2 }}>
+            {state.deck.length} left &middot; hand{" "}
+            {state.handsPlayed + (state.phase === "ready" ? 1 : 0)}
+            {state.warBurn > 0 && ` · 🔥 ${state.warBurn} burned`}
+          </div>
         </div>
 
-        {state.warBurn > 0 && (
-          <div className="text-dim text-center" style={{ fontSize: "0.8rem", marginTop: 8 }}>
-            🔥 {state.warBurn} cards burned in this war
-          </div>
-        )}
-
-        {revealed && state.lastResult && (
-          <div
-            className="card-panel text-center"
-            style={{
-              borderColor: state.lastResult.wasWar ? "var(--gold)" : "var(--take)",
-              marginTop: 12,
-            }}
-          >
-            <strong
-              style={{
-                color: state.lastResult.wasWar ? "var(--gold)" : "var(--take)",
-                fontSize: "1.2rem",
-              }}
-            >
-              {state.lastResult.wasWar ? "⚔ War won by " : ""}
-              {state.players[state.lastResult.winner].name}
-            </strong>
-            <div style={{ marginTop: 4 }}>
-              {state.players[state.lastResult.loser].name} drinks{" "}
-              {state.lastResult.drinksLost}
-            </div>
-          </div>
-        )}
-
-        <div className="stack" style={{ marginTop: 12 }}>
-          {state.phase === "ready" && (
-            <button
-              className="btn btn-primary btn-block"
-              onClick={flipInitial}
-              disabled={!canFlip(state.deck)}
-            >
-              Flip Cards
-            </button>
-          )}
-          {state.phase === "war" && (
-            <button
-              className="btn btn-block"
-              style={{ background: "var(--gold)", borderColor: "var(--gold)", color: "#3a2c00" }}
-              onClick={declareWar}
-              disabled={!canDeclareWar(state.deck)}
-            >
-              {canDeclareWar(state.deck) ? "⚔ Declare War" : "Not enough cards left"}
-            </button>
-          )}
-          {state.phase === "revealed" && (
-            <button
-              className="btn btn-primary btn-block"
-              onClick={nextHand}
-              disabled={!canFlip(state.deck)}
-            >
-              {canFlip(state.deck) ? "Next Hand" : "Finish"}
-            </button>
-          )}
-        </div>
+        {/* Bottom half — normal orientation for the player closest to the phone's bottom */}
+        <div style={{ flex: 1, display: "flex", minHeight: 0 }}>{half(1)}</div>
       </div>
     </>
   );
