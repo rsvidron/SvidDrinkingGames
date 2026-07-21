@@ -31,6 +31,7 @@ export interface WarState {
   players: [WarPlayer, WarPlayer];
   regularDrinks: number;
   warDrinks: number;
+  tapMode: WarTapMode;
   deck: Card[];
   p1Card: Card | null;
   p2Card: Card | null;

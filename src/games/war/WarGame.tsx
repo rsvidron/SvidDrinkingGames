@@ -35,20 +35,38 @@ const WAR_RULES = (
 export function WarGame({ settings, onMenuRestart }: Props) {
   const [state, setState] = useState<WarState>(() => initWar(settings));
   const [pendingTaps, setPendingTaps] = useState<[boolean, boolean]>([false, false]);
-  const menu = <GameMenu gameTitle="War" rules={WAR_RULES} onRestart={onMenuRestart} />;
+  const settingsPane = (
+    <WarSettingsPane
+      tapMode={state.tapMode}
+      regularDrinks={state.regularDrinks}
+      warDrinks={state.warDrinks}
+      onTapMode={(mode) => setState((prev) => ({ ...prev, tapMode: mode }))}
+      onRegularDrinks={(n) => setState((prev) => ({ ...prev, regularDrinks: n }))}
+      onWarDrinks={(n) => setState((prev) => ({ ...prev, warDrinks: n }))}
+    />
+  );
+  const menu = (
+    <GameMenu
+      gameTitle="War"
+      rules={WAR_RULES}
+      onRestart={onMenuRestart}
+      settings={settingsPane}
+    />
+  );
 
   // Clear any pending taps whenever the game phase changes — a new phase
   // means a new action is on offer, so old commitments shouldn't carry over.
+  // Also clear if tapMode changes (switching to "either" makes them moot).
   useEffect(() => {
     setPendingTaps([false, false]);
-  }, [state.phase]);
+  }, [state.phase, state.tapMode]);
 
   // Wrap an action so it only fires when the tap requirement is met.
   // In "either" mode a single tap fires immediately.
   // In "both" mode we mark the tapping player as ready and only fire the
   // action once both players have tapped for the current phase.
   function tap(playerIdx: 0 | 1, action: () => void) {
-    if (settings.tapMode === "either") {
+    if (state.tapMode === "either") {
       action();
       return;
     }
@@ -236,7 +254,7 @@ export function WarGame({ settings, onMenuRestart }: Props) {
   function actionButton(playerIdx: 0 | 1) {
     const iTapped = pendingTaps[playerIdx];
     const otherTapped = pendingTaps[playerIdx === 0 ? 1 : 0];
-    const bothMode = settings.tapMode === "both";
+    const bothMode = state.tapMode === "both";
     // In "both" mode: show a waiting state for the player who already tapped.
     const waitingLabel = bothMode && iTapped && !otherTapped ? (
       <>Waiting for {state.players[playerIdx === 0 ? 1 : 0].name}…</>
@@ -422,6 +440,117 @@ function ScoreCard({ name, drinks }: { name: string; drinks: number }) {
       <span style={{ color: "var(--take)" }}>
         🍺 {drinks} drink{drinks === 1 ? "" : "s"}
       </span>
+    </div>
+  );
+}
+
+function WarSettingsPane({
+  tapMode,
+  regularDrinks,
+  warDrinks,
+  onTapMode,
+  onRegularDrinks,
+  onWarDrinks,
+}: {
+  tapMode: import("./types").WarTapMode;
+  regularDrinks: number;
+  warDrinks: number;
+  onTapMode: (m: import("./types").WarTapMode) => void;
+  onRegularDrinks: (n: number) => void;
+  onWarDrinks: (n: number) => void;
+}) {
+  return (
+    <div className="stack">
+      <div>
+        <div style={{ fontSize: "0.85rem", marginBottom: 8 }}>
+          <strong>Who flips?</strong>
+        </div>
+        <div className="row" style={{ gap: 8 }}>
+          <button
+            className="btn"
+            onClick={() => onTapMode("either")}
+            style={{
+              flex: 1,
+              background: tapMode === "either" ? "var(--accent)" : "var(--panel)",
+              borderColor: tapMode === "either" ? "var(--accent)" : "var(--border)",
+              color: tapMode === "either" ? "#fff" : "var(--text)",
+            }}
+          >
+            Either taps
+          </button>
+          <button
+            className="btn"
+            onClick={() => onTapMode("both")}
+            style={{
+              flex: 1,
+              background: tapMode === "both" ? "var(--accent)" : "var(--panel)",
+              borderColor: tapMode === "both" ? "var(--accent)" : "var(--border)",
+              color: tapMode === "both" ? "#fff" : "var(--text)",
+            }}
+          >
+            Both must tap
+          </button>
+        </div>
+      </div>
+
+      <MiniStepper
+        label="Drinks per hand"
+        value={regularDrinks}
+        setValue={onRegularDrinks}
+        min={1}
+        max={5}
+      />
+      <MiniStepper
+        label="Drinks per WAR"
+        value={warDrinks}
+        setValue={onWarDrinks}
+        min={1}
+        max={10}
+      />
+      <div className="text-dim" style={{ fontSize: "0.75rem" }}>
+        Changes apply to the next hand — running drink totals stay.
+      </div>
+    </div>
+  );
+}
+
+function MiniStepper({
+  label,
+  value,
+  setValue,
+  min,
+  max,
+}: {
+  label: string;
+  value: number;
+  setValue: (n: number) => void;
+  min: number;
+  max: number;
+}) {
+  return (
+    <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
+      <strong style={{ fontSize: "0.9rem" }}>{label}</strong>
+      <div className="row" style={{ gap: 8 }}>
+        <button
+          className="btn"
+          style={{ minHeight: 36, padding: "6px 12px" }}
+          onClick={() => setValue(Math.max(min, value - 1))}
+          disabled={value <= min}
+        >
+          −
+        </button>
+        <span style={{ minWidth: 24, textAlign: "center", fontWeight: 700 }}>
+          {value}
+        </span>
+        <button
+          className="btn"
+          style={{ minHeight: 36, padding: "6px 12px" }}
+          onClick={() => setValue(Math.min(max, value + 1))}
+          disabled={value >= max}
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }

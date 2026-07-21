@@ -6,6 +6,7 @@ export function initWar(settings: WarSettings): WarState {
     players: settings.players,
     regularDrinks: settings.regularDrinks,
     warDrinks: settings.warDrinks,
+    tapMode: settings.tapMode,
     deck: shuffle(createDeck()),
     p1Card: null,
     p2Card: null,
