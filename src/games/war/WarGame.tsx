@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GameMenu } from "../../components/GameMenu";
 import { PlayingCard } from "../../components/PlayingCard";
 import { canDeclareWar, canFlip, compareRanks, initWar } from "./engine";
@@ -34,7 +34,35 @@ const WAR_RULES = (
 
 export function WarGame({ settings, onMenuRestart }: Props) {
   const [state, setState] = useState<WarState>(() => initWar(settings));
+  const [pendingTaps, setPendingTaps] = useState<[boolean, boolean]>([false, false]);
   const menu = <GameMenu gameTitle="War" rules={WAR_RULES} onRestart={onMenuRestart} />;
+
+  // Clear any pending taps whenever the game phase changes — a new phase
+  // means a new action is on offer, so old commitments shouldn't carry over.
+  useEffect(() => {
+    setPendingTaps([false, false]);
+  }, [state.phase]);
+
+  // Wrap an action so it only fires when the tap requirement is met.
+  // In "either" mode a single tap fires immediately.
+  // In "both" mode we mark the tapping player as ready and only fire the
+  // action once both players have tapped for the current phase.
+  function tap(playerIdx: 0 | 1, action: () => void) {
+    if (settings.tapMode === "either") {
+      action();
+      return;
+    }
+    setPendingTaps((prev) => {
+      const next: [boolean, boolean] = [prev[0], prev[1]];
+      next[playerIdx] = true;
+      if (next[0] && next[1]) {
+        // Fire on next microtask so the state update above lands cleanly,
+        // and the phase-change effect above resets pendingTaps to [false, false].
+        queueMicrotask(action);
+      }
+      return next;
+    });
+  }
 
   function flipInitial() {
     setState((prev) => {
@@ -205,19 +233,29 @@ export function WarGame({ settings, onMenuRestart }: Props) {
     return null;
   }
 
-  function actionButton() {
+  function actionButton(playerIdx: 0 | 1) {
+    const iTapped = pendingTaps[playerIdx];
+    const otherTapped = pendingTaps[playerIdx === 0 ? 1 : 0];
+    const bothMode = settings.tapMode === "both";
+    // In "both" mode: show a waiting state for the player who already tapped.
+    const waitingLabel = bothMode && iTapped && !otherTapped ? (
+      <>Waiting for {state.players[playerIdx === 0 ? 1 : 0].name}…</>
+    ) : null;
+
     if (state.phase === "ready") {
+      const disabled = !canFlip(state.deck) || iTapped;
       return (
         <button
           className="btn btn-primary btn-block"
-          onClick={flipInitial}
-          disabled={!canFlip(state.deck)}
+          onClick={() => tap(playerIdx, flipInitial)}
+          disabled={disabled}
         >
-          Flip Cards
+          {waitingLabel ?? "Flip Cards"}
         </button>
       );
     }
     if (state.phase === "war") {
+      const disabled = !canDeclareWar(state.deck) || iTapped;
       return (
         <button
           className="btn btn-block"
@@ -226,21 +264,23 @@ export function WarGame({ settings, onMenuRestart }: Props) {
             borderColor: "var(--gold)",
             color: "#3a2c00",
           }}
-          onClick={declareWar}
-          disabled={!canDeclareWar(state.deck)}
+          onClick={() => tap(playerIdx, declareWar)}
+          disabled={disabled}
         >
-          {canDeclareWar(state.deck) ? "⚔ Declare War" : "Not enough cards left"}
+          {waitingLabel ??
+            (canDeclareWar(state.deck) ? "⚔ Declare War" : "Not enough cards left")}
         </button>
       );
     }
     // revealed
+    const disabled = !canFlip(state.deck) || iTapped;
     return (
       <button
         className="btn btn-primary btn-block"
-        onClick={nextHand}
-        disabled={!canFlip(state.deck)}
+        onClick={() => tap(playerIdx, nextHand)}
+        disabled={disabled}
       >
-        {canFlip(state.deck) ? "Next Hand" : "Finish"}
+        {waitingLabel ?? (canFlip(state.deck) ? "Next Hand" : "Finish")}
       </button>
     );
   }
@@ -271,31 +311,74 @@ export function WarGame({ settings, onMenuRestart }: Props) {
     );
   }
 
-  // Each half owns one player's row + a mirrored result banner + action button.
-  // Top half is rotated 180° so the player sitting at that end sees it upright.
-  const half = (playerIdx: 0 | 1) => (
-    <div
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-around",
-        gap: 12,
-        padding: "8px 0",
-        minHeight: 0,
-      }}
-    >
-      {actionButton()}
-      {resultBanner()}
-      <PlayerRow
-        name={state.players[playerIdx].name}
-        drinks={state.drinks[playerIdx]}
-        card={playerIdx === 0 ? state.p1Card : state.p2Card}
-        revealed={revealed || inWar}
-        highlight={highlightFor(playerIdx)}
-      />
-    </div>
-  );
+  // Each half is stacked DOM top-to-bottom as:
+  //   card (flex:1, sticks to DOM top) → name label → result banner → button
+  // For the top half we apply rotate(180). Because of the rotation, the
+  // element at DOM top ends up nearest the screen center (near the divider),
+  // and the element at DOM bottom ends up nearest the phone's outer edge
+  // (right at the top player's fingertips).
+  const half = (playerIdx: 0 | 1) => {
+    const showCard = revealed || inWar;
+    const playerCard = playerIdx === 0 ? state.p1Card : state.p2Card;
+    const highlight = highlightFor(playerIdx);
+    const borderColor =
+      highlight === "win"
+        ? "var(--correct)"
+        : highlight === "lose"
+        ? "var(--take)"
+        : "transparent";
+    return (
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+          padding: "6px 0",
+          minHeight: 0,
+        }}
+      >
+        {/* Card fills the space closest to the center divider */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
+            alignItems: "center",
+            minHeight: 0,
+          }}
+        >
+          <div
+            style={{
+              padding: 4,
+              borderRadius: 14,
+              border: `3px solid ${borderColor}`,
+              transition: "border-color 0.15s ease",
+            }}
+          >
+            <PlayingCard
+              card={showCard && playerCard ? playerCard : undefined}
+              faceDown={!showCard || !playerCard}
+              size="lg"
+            />
+          </div>
+        </div>
+
+        {/* Name + drink count — small, right below the card */}
+        <div style={{ textAlign: "center", fontSize: "0.95rem" }}>
+          <strong>{state.players[playerIdx].name}</strong>
+          <span className="text-dim" style={{ marginLeft: 10 }}>
+            🍺 {state.drinks[playerIdx]}
+          </span>
+        </div>
+
+        {resultBanner()}
+
+        {actionButton(playerIdx)}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -329,48 +412,6 @@ export function WarGame({ settings, onMenuRestart }: Props) {
         <div style={{ flex: 1, display: "flex", minHeight: 0 }}>{half(1)}</div>
       </div>
     </>
-  );
-}
-
-function PlayerRow({
-  name,
-  drinks,
-  card,
-  revealed,
-  highlight,
-}: {
-  name: string;
-  drinks: number;
-  card: import("../../lib/deck").Card | null;
-  revealed: boolean;
-  highlight: "win" | "lose" | null;
-}) {
-  const borderColor =
-    highlight === "win"
-      ? "var(--correct)"
-      : highlight === "lose"
-      ? "var(--take)"
-      : "transparent";
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-        padding: 12,
-        borderRadius: 12,
-        border: `2px solid ${borderColor}`,
-        transition: "border-color 0.15s ease",
-      }}
-    >
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: "1.1rem", fontWeight: 700 }}>{name}</div>
-        <div className="text-dim" style={{ fontSize: "0.8rem" }}>
-          🍺 {drinks} drink{drinks === 1 ? "" : "s"}
-        </div>
-      </div>
-      <PlayingCard card={revealed && card ? card : undefined} faceDown={!revealed || !card} size="md" />
-    </div>
   );
 }
 

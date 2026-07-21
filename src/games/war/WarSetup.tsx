@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { WarSettings } from "./types";
+import type { WarSettings, WarTapMode } from "./types";
 
 interface Props {
   onStart: (settings: WarSettings) => void;
@@ -11,6 +11,7 @@ export function WarSetup({ onStart }: Props) {
   const [p2Name, setP2Name] = useState("Pookie");
   const [regularDrinks, setRegularDrinks] = useState(1);
   const [warDrinks, setWarDrinks] = useState(3);
+  const [tapMode, setTapMode] = useState<WarTapMode>("either");
 
   const canStart = p1Name.trim().length > 0 && p2Name.trim().length > 0;
 
@@ -69,6 +70,40 @@ export function WarSetup({ onStart }: Props) {
           max={10}
         />
 
+        <div className="card-panel">
+          <strong>Who flips?</strong>
+          <div className="text-dim" style={{ fontSize: "0.85rem" }}>
+            Either mode = one tap advances the hand. Both mode = each player
+            has to tap their own button before cards flip.
+          </div>
+          <div className="row" style={{ gap: 8, marginTop: 10 }}>
+            <button
+              className="btn"
+              onClick={() => setTapMode("either")}
+              style={{
+                flex: 1,
+                background: tapMode === "either" ? "var(--accent)" : "var(--panel)",
+                borderColor: tapMode === "either" ? "var(--accent)" : "var(--border)",
+                color: tapMode === "either" ? "#fff" : "var(--text)",
+              }}
+            >
+              Either taps
+            </button>
+            <button
+              className="btn"
+              onClick={() => setTapMode("both")}
+              style={{
+                flex: 1,
+                background: tapMode === "both" ? "var(--accent)" : "var(--panel)",
+                borderColor: tapMode === "both" ? "var(--accent)" : "var(--border)",
+                color: tapMode === "both" ? "#fff" : "var(--text)",
+              }}
+            >
+              Both must tap
+            </button>
+          </div>
+        </div>
+
         <div className="card-panel text-dim" style={{ fontSize: "0.85rem" }}>
           <strong style={{ color: "var(--text)" }}>How it works</strong>
           <div style={{ marginTop: 6 }}>
@@ -97,6 +132,7 @@ export function WarSetup({ onStart }: Props) {
               players: [{ name: p1Name.trim() }, { name: p2Name.trim() }],
               regularDrinks,
               warDrinks,
+              tapMode,
             })
           }
         >

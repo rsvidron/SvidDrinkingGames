@@ -4,10 +4,13 @@ export interface WarPlayer {
   name: string;
 }
 
+export type WarTapMode = "either" | "both";
+
 export interface WarSettings {
   players: [WarPlayer, WarPlayer];
   regularDrinks: number; // drinks the loser of a normal hand takes
   warDrinks: number; // drinks the loser of a WAR (tie-triggered) takes
+  tapMode: WarTapMode; // "either": one player taps to advance; "both": both must tap
 }
 
 export type WarPhase =
