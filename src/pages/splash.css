@@ -229,11 +229,13 @@
 .splash-game--kings   { border-top: 3px solid var(--gold); }
 .splash-game--dealer  { border-top: 3px solid var(--accent-2); }
 .splash-game--piccolo { border-top: 3px solid #a065ff; }
+.splash-game--horse   { border-top: 3px solid var(--correct); }
 
 .splash-game--river   .splash-game__visual { background: linear-gradient(135deg, rgba(230, 57, 70, 0.25), rgba(230, 57, 70, 0.05)); }
 .splash-game--kings   .splash-game__visual { background: linear-gradient(135deg, rgba(255, 209, 102, 0.25), rgba(255, 209, 102, 0.05)); }
 .splash-game--dealer  .splash-game__visual { background: linear-gradient(135deg, rgba(46, 196, 182, 0.25), rgba(46, 196, 182, 0.05)); }
 .splash-game--piccolo .splash-game__visual { background: linear-gradient(135deg, rgba(160, 101, 255, 0.28), rgba(160, 101, 255, 0.05)); }
+.splash-game--horse   .splash-game__visual { background: linear-gradient(135deg, rgba(61, 220, 132, 0.28), rgba(61, 220, 132, 0.05)); }
 
 /* Faux card face inside visuals */
 .mini-card {

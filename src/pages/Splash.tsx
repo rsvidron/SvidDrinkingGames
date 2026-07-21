@@ -26,7 +26,7 @@ export function Splash() {
             <span className="splash-hero__title-accent">without the deck.</span>
           </h1>
           <p className="splash-hero__sub">
-            Four drinking games that live on your phone. Pass it around the
+            Five drinking games that live on your phone. Pass it around the
             circle, hit up the second-screen table display, and let the deck do
             the work.
           </p>
@@ -56,7 +56,7 @@ export function Splash() {
             </div>
             <div className="splash-feature">
               <div className="splash-feature__icon">🎴</div>
-              <div className="splash-feature__title">Four full games</div>
+              <div className="splash-feature__title">Five full games</div>
               <p className="splash-feature__text">
                 Classic drinking cards, reimagined for a phone at a bar table.
               </p>
@@ -82,7 +82,7 @@ export function Splash() {
 
         {/* Games */}
         <section className="splash-section" id="games">
-          <h2 className="splash-section__title">Four games. More on the way.</h2>
+          <h2 className="splash-section__title">Five games. More on the way.</h2>
           <p className="splash-section__sub">
             Every game is tuned for a phone getting passed around a bar table.
             No score cards, no rulebooks — the phone runs the game.
@@ -198,6 +198,27 @@ export function Splash() {
                 <span>📱 1 phone</span>
               </div>
             </div>
+
+            <div className="splash-game splash-game--horse">
+              <div className="splash-game__visual">
+                <div style={{ display: "flex", gap: 6 }}>
+                  <div className="mini-card mini-card--red">A♥</div>
+                  <div className="mini-card mini-card--red">A♦</div>
+                  <div className="mini-card">A♣</div>
+                  <div className="mini-card">A♠</div>
+                </div>
+              </div>
+              <h3 className="splash-game__title">Horse Race</h3>
+              <p className="splash-game__desc">
+                Each player picks a suit. Cards flip, the matching ace runs
+                forward. Whoever falls into last place drinks — first to the
+                finish line gives out 5.
+              </p>
+              <div className="splash-game__meta">
+                <span>👥 2–4 players</span>
+                <span>📱 1 phone</span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -245,7 +266,7 @@ export function Splash() {
                 <span className="splash-price__amount-unit">/ 24 hours</span>
               </div>
               <ul className="splash-price__list">
-                <li>All four games</li>
+                <li>All five games</li>
                 <li>Everything unlocks for 24 hours</li>
                 <li>Great for a single bar night</li>
               </ul>
@@ -262,7 +283,7 @@ export function Splash() {
                 <span className="splash-price__amount-unit">/ forever</span>
               </div>
               <ul className="splash-price__list">
-                <li>All four games, forever</li>
+                <li>All five games, forever</li>
                 <li>Every future game we ship</li>
                 <li>7-day refund window if it's not for you</li>
               </ul>
