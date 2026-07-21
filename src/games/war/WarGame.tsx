@@ -312,15 +312,15 @@ export function WarGame({ settings, onMenuRestart }: Props) {
         </button>
       );
     }
-    // revealed
-    const disabled = !canFlip(state.deck) || iTapped;
+    // revealed — Next Hand is just an acknowledgment; either player
+    // can advance even in "both must tap" mode so the game doesn't stall.
     return (
       <button
         className="btn btn-primary btn-block"
-        onClick={() => tap(playerIdx, nextHand)}
-        disabled={disabled}
+        onClick={nextHand}
+        disabled={!canFlip(state.deck)}
       >
-        {waitingLabel ?? (canFlip(state.deck) ? "Next Hand" : "Finish")}
+        {canFlip(state.deck) ? "Next Hand" : "Finish"}
       </button>
     );
   }
