@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { WarSettings, WarTapMode } from "./types";
+import type { WarSettings, WarTapMode, WarMode } from "./types";
 
 interface Props {
   onStart: (settings: WarSettings) => void;
@@ -12,6 +12,7 @@ export function WarSetup({ onStart }: Props) {
   const [regularDrinks, setRegularDrinks] = useState(1);
   const [warDrinks, setWarDrinks] = useState(3);
   const [tapMode, setTapMode] = useState<WarTapMode>("either");
+  const [mode, setMode] = useState<WarMode>("simple");
 
   const canStart = p1Name.trim().length > 0 && p2Name.trim().length > 0;
 
@@ -69,6 +70,41 @@ export function WarSetup({ onStart }: Props) {
           min={1}
           max={10}
         />
+
+        <div className="card-panel">
+          <strong>Game style</strong>
+          <div className="text-dim" style={{ fontSize: "0.85rem" }}>
+            Simple = ~26 hands, deck runs out and you're done. Traditional =
+            winner keeps the cards; ends when one player runs out. Longer,
+            more like the actual card game.
+          </div>
+          <div className="row" style={{ gap: 8, marginTop: 10 }}>
+            <button
+              className="btn"
+              onClick={() => setMode("simple")}
+              style={{
+                flex: 1,
+                background: mode === "simple" ? "var(--accent)" : "var(--panel)",
+                borderColor: mode === "simple" ? "var(--accent)" : "var(--border)",
+                color: mode === "simple" ? "#fff" : "var(--text)",
+              }}
+            >
+              Simple
+            </button>
+            <button
+              className="btn"
+              onClick={() => setMode("traditional")}
+              style={{
+                flex: 1,
+                background: mode === "traditional" ? "var(--accent)" : "var(--panel)",
+                borderColor: mode === "traditional" ? "var(--accent)" : "var(--border)",
+                color: mode === "traditional" ? "#fff" : "var(--text)",
+              }}
+            >
+              Traditional
+            </button>
+          </div>
+        </div>
 
         <div className="card-panel">
           <strong>Who flips?</strong>
@@ -133,6 +169,7 @@ export function WarSetup({ onStart }: Props) {
               regularDrinks,
               warDrinks,
               tapMode,
+              mode,
             })
           }
         >

@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { GameMenu } from "../../components/GameMenu";
 import { PlayingCard } from "../../components/PlayingCard";
-import { canDeclareWar, canFlip, compareRanks, initWar } from "./engine";
+import {
+  canDeclareWar,
+  canDeclareWarTraditional,
+  canFlip,
+  canFlipTraditional,
+  compareRanks,
+  initWar,
+  shuffleForPile,
+} from "./engine";
 import type { WarSettings, WarState } from "./types";
 
 interface Props {
@@ -106,11 +114,53 @@ export function WarGame({ settings, onMenuRestart }: Props) {
 
   function flipInitial() {
     setState((prev) => {
+      if (prev.mode === "traditional") {
+        if (!canFlipTraditional(prev.p1Pile, prev.p2Pile)) {
+          return { ...prev, phase: "gameover" };
+        }
+        const [c1, ...p1Rest] = prev.p1Pile;
+        const [c2, ...p2Rest] = prev.p2Pile;
+        const nextPot = [...prev.pot, c1, c2];
+        const cmp = compareRanks(c1, c2);
+        if (cmp === -1) {
+          return {
+            ...prev,
+            p1Pile: p1Rest,
+            p2Pile: p2Rest,
+            pot: nextPot,
+            p1Card: c1,
+            p2Card: c2,
+            warBurn: 0,
+            handsPlayed: prev.handsPlayed + 1,
+            warsHad: prev.warsHad + 1,
+            lastResult: null,
+            phase: "war",
+          };
+        }
+        const winner = cmp;
+        const loser = (1 - cmp) as 0 | 1;
+        const drinksLost = prev.regularDrinks;
+        const nextDrinks: [number, number] = [...prev.drinks];
+        nextDrinks[loser] += drinksLost;
+        return {
+          ...prev,
+          p1Pile: p1Rest,
+          p2Pile: p2Rest,
+          pot: nextPot,
+          p1Card: c1,
+          p2Card: c2,
+          warBurn: 0,
+          handsPlayed: prev.handsPlayed + 1,
+          drinks: nextDrinks,
+          lastResult: { winner, loser, drinksLost, wasWar: false, warDepth: 0 },
+          phase: "revealed",
+        };
+      }
+      // simple mode
       if (!canFlip(prev.deck)) return { ...prev, phase: "gameover" };
       const [c1, c2, ...rest] = prev.deck;
       const cmp = compareRanks(c1, c2);
       if (cmp === -1) {
-        // Tied — enter war state
         return {
           ...prev,
           deck: rest,
@@ -123,7 +173,7 @@ export function WarGame({ settings, onMenuRestart }: Props) {
           phase: "war",
         };
       }
-      const winner = cmp; // 0 or 1
+      const winner = cmp;
       const loser = (1 - cmp) as 0 | 1;
       const drinksLost = prev.regularDrinks;
       const nextDrinks: [number, number] = [...prev.drinks];
@@ -136,13 +186,7 @@ export function WarGame({ settings, onMenuRestart }: Props) {
         warBurn: 0,
         handsPlayed: prev.handsPlayed + 1,
         drinks: nextDrinks,
-        lastResult: {
-          winner,
-          loser,
-          drinksLost,
-          wasWar: false,
-          warDepth: 0,
-        },
+        lastResult: { winner, loser, drinksLost, wasWar: false, warDepth: 0 },
         phase: "revealed",
       };
     });
@@ -150,22 +194,96 @@ export function WarGame({ settings, onMenuRestart }: Props) {
 
   function declareWar() {
     setState((prev) => {
-      if (!canDeclareWar(prev.deck)) {
-        // Not enough cards to finish this war — call it a draw and end.
+      if (prev.mode === "traditional") {
+        if (!canDeclareWarTraditional(prev.p1Pile, prev.p2Pile)) {
+          // Whoever still has cards claims the pot and takes the win.
+          const winner: 0 | 1 = prev.p1Pile.length > 0 ? 0 : 1;
+          const loser = (1 - winner) as 0 | 1;
+          const nextDrinks: [number, number] = [...prev.drinks];
+          nextDrinks[loser] += prev.warDrinks;
+          const winnerPile =
+            winner === 0
+              ? [...prev.p1Pile, ...shuffleForPile(prev.pot)]
+              : [...prev.p2Pile, ...shuffleForPile(prev.pot)];
+          return {
+            ...prev,
+            p1Pile: winner === 0 ? winnerPile : prev.p1Pile,
+            p2Pile: winner === 1 ? winnerPile : prev.p2Pile,
+            pot: [],
+            drinks: nextDrinks,
+            lastResult: {
+              winner,
+              loser,
+              drinksLost: prev.warDrinks,
+              wasWar: true,
+              warDepth: Math.floor(prev.warBurn / 6) + 1,
+            },
+            // Show the result banner; Next Hand will find loser's pile empty
+            // and roll to gameover.
+            phase: "revealed",
+          };
+        }
+        // Burn min(3, pileLen - 1) then flip 1 per side. Short piles play
+        // whatever they've got.
+        const p1Burns = Math.min(3, Math.max(0, prev.p1Pile.length - 1));
+        const p2Burns = Math.min(3, Math.max(0, prev.p2Pile.length - 1));
+        const p1Take = p1Burns + 1;
+        const p2Take = p2Burns + 1;
+        const p1Cards = prev.p1Pile.slice(0, p1Take);
+        const p2Cards = prev.p2Pile.slice(0, p2Take);
+        const c1 = p1Cards[p1Cards.length - 1];
+        const c2 = p2Cards[p2Cards.length - 1];
+        const nextPot = [...prev.pot, ...p1Cards, ...p2Cards];
+        const newBurn = prev.warBurn + p1Burns + p2Burns;
+        const cmp = compareRanks(c1, c2);
+        if (cmp === -1) {
+          return {
+            ...prev,
+            p1Pile: prev.p1Pile.slice(p1Take),
+            p2Pile: prev.p2Pile.slice(p2Take),
+            pot: nextPot,
+            p1Card: c1,
+            p2Card: c2,
+            warBurn: newBurn,
+            warsHad: prev.warsHad + 1,
+            lastResult: null,
+            phase: "war",
+          };
+        }
+        const winner = cmp;
+        const loser = (1 - cmp) as 0 | 1;
+        const nextDrinks: [number, number] = [...prev.drinks];
+        nextDrinks[loser] += prev.warDrinks;
         return {
           ...prev,
-          phase: "gameover",
+          p1Pile: prev.p1Pile.slice(p1Take),
+          p2Pile: prev.p2Pile.slice(p2Take),
+          pot: nextPot,
+          p1Card: c1,
+          p2Card: c2,
+          warBurn: newBurn,
+          drinks: nextDrinks,
+          lastResult: {
+            winner,
+            loser,
+            drinksLost: prev.warDrinks,
+            wasWar: true,
+            warDepth: Math.floor(newBurn / 6) + 1,
+          },
+          phase: "revealed",
         };
       }
-      // Burn 3 per side, then flip 1 per side.
-      const rest = prev.deck.slice(6); // burn 3+3
+      // simple mode
+      if (!canDeclareWar(prev.deck)) {
+        return { ...prev, phase: "gameover" };
+      }
+      const rest = prev.deck.slice(6);
       const c1 = rest[0];
       const c2 = rest[1];
       const afterFlip = rest.slice(2);
       const newBurn = prev.warBurn + 6;
       const cmp = compareRanks(c1, c2);
       if (cmp === -1) {
-        // Tied again — chain another war.
         return {
           ...prev,
           deck: afterFlip,
@@ -179,9 +297,8 @@ export function WarGame({ settings, onMenuRestart }: Props) {
       }
       const winner = cmp;
       const loser = (1 - cmp) as 0 | 1;
-      const drinksLost = prev.warDrinks;
       const nextDrinks: [number, number] = [...prev.drinks];
-      nextDrinks[loser] += drinksLost;
+      nextDrinks[loser] += prev.warDrinks;
       return {
         ...prev,
         deck: afterFlip,
@@ -192,7 +309,7 @@ export function WarGame({ settings, onMenuRestart }: Props) {
         lastResult: {
           winner,
           loser,
-          drinksLost,
+          drinksLost: prev.warDrinks,
           wasWar: true,
           warDepth: Math.floor(newBurn / 6),
         },
@@ -203,6 +320,30 @@ export function WarGame({ settings, onMenuRestart }: Props) {
 
   function nextHand() {
     setState((prev) => {
+      if (prev.mode === "traditional") {
+        // Winner claims the pot. Shuffled so deterministic loops can't form.
+        const winnerIdx = prev.lastResult?.winner ?? null;
+        let nextP1 = prev.p1Pile;
+        let nextP2 = prev.p2Pile;
+        if (prev.pot.length > 0 && winnerIdx !== null) {
+          const claimed = shuffleForPile(prev.pot);
+          if (winnerIdx === 0) nextP1 = [...prev.p1Pile, ...claimed];
+          else nextP2 = [...prev.p2Pile, ...claimed];
+        }
+        const gameOver = nextP1.length === 0 || nextP2.length === 0;
+        return {
+          ...prev,
+          p1Pile: nextP1,
+          p2Pile: nextP2,
+          pot: [],
+          p1Card: null,
+          p2Card: null,
+          warBurn: 0,
+          lastResult: null,
+          phase: gameOver ? "gameover" : "ready",
+        };
+      }
+      // simple mode
       if (!canFlip(prev.deck)) return { ...prev, phase: "gameover" };
       return {
         ...prev,
@@ -215,10 +356,30 @@ export function WarGame({ settings, onMenuRestart }: Props) {
     });
   }
 
+  // Mode-aware helpers used by the button + status strip.
+  const isTraditional = state.mode === "traditional";
+  const flipReady = isTraditional
+    ? canFlipTraditional(state.p1Pile, state.p2Pile)
+    : canFlip(state.deck);
+  const warReady = isTraditional
+    ? canDeclareWarTraditional(state.p1Pile, state.p2Pile)
+    : canDeclareWar(state.deck);
+
   if (state.phase === "gameover") {
     const [d1, d2] = state.drinks;
-    const overallLoser: 0 | 1 | null =
-      d1 === d2 ? null : d1 > d2 ? 0 : 1;
+    // Traditional mode: loser is whoever ran out of cards. Simple mode:
+    // whoever drank the most.
+    const overallLoser: 0 | 1 | null = isTraditional
+      ? state.p1Pile.length === 0 && state.p2Pile.length === 0
+        ? null
+        : state.p1Pile.length === 0
+        ? 0
+        : 1
+      : d1 === d2
+      ? null
+      : d1 > d2
+      ? 0
+      : 1;
     return (
       <>
         {menu}
@@ -283,7 +444,7 @@ export function WarGame({ settings, onMenuRestart }: Props) {
     ) : null;
 
     if (state.phase === "ready") {
-      const disabled = !canFlip(state.deck) || iTapped;
+      const disabled = !flipReady || iTapped;
       return (
         <button
           className="btn btn-primary btn-block"
@@ -295,7 +456,7 @@ export function WarGame({ settings, onMenuRestart }: Props) {
       );
     }
     if (state.phase === "war") {
-      const disabled = !canDeclareWar(state.deck) || iTapped;
+      const disabled = !warReady || iTapped;
       return (
         <button
           className="btn btn-block"
@@ -307,20 +468,22 @@ export function WarGame({ settings, onMenuRestart }: Props) {
           onClick={() => tap(playerIdx, declareWar)}
           disabled={disabled}
         >
-          {waitingLabel ??
-            (canDeclareWar(state.deck) ? "⚔ Declare War" : "Not enough cards left")}
+          {waitingLabel ?? (warReady ? "⚔ Declare War" : "Not enough cards left")}
         </button>
       );
     }
     // revealed — Next Hand is just an acknowledgment; either player
     // can advance even in "both must tap" mode so the game doesn't stall.
+    // In traditional mode, "canFlip" here doesn't account for the pot that's
+    // about to be awarded — always allow advancing so the winner can claim.
+    const canAdvance = isTraditional ? true : flipReady;
     return (
       <button
         className="btn btn-primary btn-block"
         onClick={nextHand}
-        disabled={!canFlip(state.deck)}
+        disabled={!canAdvance}
       >
-        {canFlip(state.deck) ? "Next Hand" : "Finish"}
+        {canAdvance ? "Next Hand" : "Finish"}
       </button>
     );
   }
@@ -451,9 +614,13 @@ export function WarGame({ settings, onMenuRestart }: Props) {
             {inWar ? "⚔ TIED ⚔" : "VS"}
           </div>
           <div className="text-dim" style={{ fontSize: "0.7rem", marginTop: 2 }}>
-            {state.deck.length} left &middot; hand{" "}
+            {isTraditional
+              ? `${state.players[0].name}: ${state.p1Pile.length} · ${state.players[1].name}: ${state.p2Pile.length}`
+              : `${state.deck.length} left`}
+            {" · hand "}
             {state.handsPlayed + (state.phase === "ready" ? 1 : 0)}
             {state.warBurn > 0 && ` · 🔥 ${state.warBurn} burned`}
+            {isTraditional && state.pot.length > 0 && ` · 🏆 ${state.pot.length} in pot`}
           </div>
         </div>
 
