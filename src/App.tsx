@@ -23,6 +23,7 @@ import { FuckTheDealerViewer } from "./games/fuckTheDealer/FuckTheDealerViewer";
 import { PiccoloPage } from "./games/piccolo/PiccoloPage";
 import { HorseRacePage } from "./games/horseRace/HorseRacePage";
 import { WarPage } from "./games/war/WarPage";
+import { BlackjackPage } from "./games/blackjack/BlackjackPage";
 
 function App() {
   return (
@@ -92,6 +93,14 @@ function App() {
             element={
               <AuthGuard>
                 <WarPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/games/blackjack/setup"
+            element={
+              <AuthGuard>
+                <BlackjackPage />
               </AuthGuard>
             }
           />

@@ -57,6 +57,14 @@ export const GAMES: GameDefinition[] = [
     available: true,
   },
   {
+    id: "blackjack",
+    name: "Blackjack",
+    tagline: "Bet drinks. Beat the dealer. Bust and drink up.",
+    minPlayers: 1,
+    path: "/games/blackjack/setup",
+    available: true,
+  },
+  {
     id: "ride-the-bus",
     name: "Ride the Bus",
     tagline: "Coming soon",
