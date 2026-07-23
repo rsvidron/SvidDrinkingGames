@@ -66,26 +66,7 @@ emails from Stripe.
 
 Follow-ups. None blocks shipping.
 
-### 1. Webhook idempotency (double-grant risk)
-
-Stripe retries webhooks on 5xx / timeout. If our handler is slow and the
-first response times out, Stripe delivers the same event again and we'd
-insert a duplicate `grants` row.
-
-Fix: add a unique index on `grants.stripe_payment_id`, then either
-`on conflict do nothing` on insert or check-then-insert. Low-probability in
-practice but cheap to add.
-
-### 2. Reuse a single Stripe Customer per user (polish)
-
-Right now every checkout passes `customer_email` and Stripe creates a fresh
-Customer object each time — one user with three purchases shows up as three
-separate Customers in the Stripe dashboard.
-
-Fix: add `stripe_customer_id` to `public.profiles`, look up or create at
-checkout time, pass `customer: customerId` to `sessions.create`.
-
-### 3. Tax / receipts (polish)
+### Tax / receipts (polish)
 
 - Stripe Tax isn't enabled — we're not calculating sales tax on the $20
   Lifetime. Check whether it matters for your state/scale before enabling.
