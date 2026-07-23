@@ -176,15 +176,31 @@ export function advancePlayer(state: BlackjackState): BlackjackState {
   return { ...state, phase: "dealerReveal" };
 }
 
-/** Reveal hole card, dealer hits until 17+, then compute results. */
-export function dealerPlay(state: BlackjackState): BlackjackState {
-  const dealerHand = [...state.dealerHand];
-  const shoe = [...state.shoe];
-  while (handTotal(dealerHand).total < 17) {
-    dealerHand.push(shoe.shift()!);
+/** Flip the hole card and enter the paced dealer-draw phase. If the dealer
+ *  is already at 17+ (or blackjack) after the flip, the UI still shows the
+ *  flip briefly before {@link dealerHitOne} transitions to results. */
+export function revealDealerHole(state: BlackjackState): BlackjackState {
+  return { ...state, dealerRevealed: true, phase: "dealerPlaying" };
+}
+
+/** One step of dealer play: draw one card if under 17, otherwise finalize.
+ *  The UI drives this on a timer so each card appears with a pause. */
+export function dealerHitOne(state: BlackjackState): BlackjackState {
+  const currentTotal = handTotal(state.dealerHand).total;
+  if (currentTotal >= 17) {
+    // Nothing more to draw — settle the hand.
+    return computeResults(state);
   }
-  const settled: BlackjackState = { ...state, dealerHand, shoe, dealerRevealed: true };
-  return computeResults(settled);
+  const shoe = [...state.shoe];
+  const card = shoe.shift()!;
+  const dealerHand = [...state.dealerHand, card];
+  const next = { ...state, dealerHand, shoe };
+  const newTotal = handTotal(dealerHand).total;
+  if (newTotal >= 17) {
+    // Landed at 17+ (or bust); settle now.
+    return computeResults(next);
+  }
+  return next; // stays in dealerPlaying — UI will schedule the next hit.
 }
 
 function computeResults(state: BlackjackState): BlackjackState {

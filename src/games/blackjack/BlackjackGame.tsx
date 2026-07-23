@@ -1,19 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GameMenu } from "../../components/GameMenu";
 import { PlayingCard } from "../../components/PlayingCard";
 import {
   advancePlayer,
   beginPlayerTurn,
   dealHand,
-  dealerPlay,
+  dealerHitOne,
   handTotal,
   initBlackjack,
   playerDouble,
   playerHit,
   playerStand,
   readyForNextHand,
+  revealDealerHole,
   setBet,
 } from "./engine";
+
+// Pacing constants for the dealer-draw animation.
+const DEALER_FLIP_DELAY_MS = 800;   // pause after flipping the hole card
+const DEALER_HIT_DELAY_MS = 700;    // pause between each hit
 import type { BlackjackSettings, BlackjackState, PlayerHand } from "./types";
 
 interface Props {
@@ -59,6 +64,21 @@ const BLACKJACK_RULES = (
 export function BlackjackGame({ settings, onMenuRestart }: Props) {
   const [state, setState] = useState<BlackjackState>(() => initBlackjack(settings));
   const [showLastResults, setShowLastResults] = useState(true);
+
+  // Pace the dealer draw so each card appears with a visible pause. Fires on
+  // entering dealerPlaying, then re-fires whenever a new card lands (dealer
+  // hand length changes) — until dealerHitOne transitions the phase to
+  // "results". First step gets a longer delay so the hole-card flip
+  // registers before the next card lands.
+  useEffect(() => {
+    if (state.phase !== "dealerPlaying") return;
+    const isFirstStep = state.dealerHand.length === 2;
+    const delay = isFirstStep ? DEALER_FLIP_DELAY_MS : DEALER_HIT_DELAY_MS;
+    const timer = window.setTimeout(() => {
+      setState((prev) => (prev.phase === "dealerPlaying" ? dealerHitOne(prev) : prev));
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [state.phase, state.dealerHand.length]);
 
   const settingsPane = (
     <BlackjackSettingsPane
@@ -314,10 +334,42 @@ export function BlackjackGame({ settings, onMenuRestart }: Props) {
 
           <button
             className="btn btn-primary btn-block"
-            onClick={() => setState((p) => dealerPlay(p))}
+            onClick={() => setState((p) => revealDealerHole(p))}
           >
             Flip
           </button>
+        </div>
+      </>
+    );
+  }
+
+  if (state.phase === "dealerPlaying") {
+    const { total } = handTotal(state.dealerHand);
+    return (
+      <>
+        {menu}
+        <div className="screen">
+          <div className="screen-header">
+            <h1>Dealer</h1>
+            <p>
+              {total < 17
+                ? "Hitting to 17…"
+                : total > 21
+                ? "BUST"
+                : `Stands at ${total}`}
+            </p>
+          </div>
+
+          <div className="stack" style={{ flex: 1, justifyContent: "center" }}>
+            <DealerHandView cards={state.dealerHand} revealed={true} />
+            <div
+              className="text-center"
+              style={{ fontSize: "1.6rem", fontWeight: 800, marginTop: 12 }}
+            >
+              {total}
+              {total > 21 ? " · BUST" : ""}
+            </div>
+          </div>
         </div>
       </>
     );
