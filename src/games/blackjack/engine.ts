@@ -166,21 +166,16 @@ export function playerDouble(state: BlackjackState): BlackjackState {
 
 /** Explicit "pass phone" — called from the UI when the player has finished
  *  looking at their bust/stand/blackjack outcome. Moves to the next pending
- *  player, or transitions to the dealer phase if everyone's done. */
+ *  player, or straight into the paced dealer draw if everyone's done. */
 export function advancePlayer(state: BlackjackState): BlackjackState {
   for (let i = state.activePlayerIdx + 1; i < state.playerHands.length; i += 1) {
     if (state.playerHands[i].status === "pending") {
       return { ...state, activePlayerIdx: i, phase: "pass" };
     }
   }
-  return { ...state, phase: "dealerReveal" };
-}
-
-/** Flip the hole card and enter the paced dealer-draw phase. If the dealer
- *  is already at 17+ (or blackjack) after the flip, the UI still shows the
- *  flip briefly before {@link dealerHitOne} transitions to results. */
-export function revealDealerHole(state: BlackjackState): BlackjackState {
-  return { ...state, dealerRevealed: true, phase: "dealerPlaying" };
+  // No pending players left — auto-flip the hole card and enter dealerPlaying.
+  // BlackjackGame's useEffect will schedule the first hit shortly after.
+  return { ...state, phase: "dealerPlaying", dealerRevealed: true };
 }
 
 /** One step of dealer play: draw one card if under 17, otherwise finalize.

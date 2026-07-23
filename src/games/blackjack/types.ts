@@ -17,8 +17,7 @@ export type BlackjackPhase =
   | "ready"         // pre-deal: press Deal Hand
   | "pass"          // "pass to Bobby" — hides previous player's cards
   | "playing"       // active player looking at their private hand
-  | "dealerReveal"  // "tap to reveal dealer" screen
-  | "dealerPlaying" // hole flipped; dealer draws one card at a time on a timer
+  | "dealerPlaying" // hole auto-flips; dealer draws one card at a time on a timer
   | "results";      // all hands + outcomes + drink assignments
 
 export type PlayerHandStatus =

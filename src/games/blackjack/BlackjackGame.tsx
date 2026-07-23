@@ -12,7 +12,6 @@ import {
   playerHit,
   playerStand,
   readyForNextHand,
-  revealDealerHole,
   setBet,
 } from "./engine";
 
@@ -318,31 +317,6 @@ export function BlackjackGame({ settings, onMenuRestart }: Props) {
     );
   }
 
-  if (state.phase === "dealerReveal") {
-    return (
-      <>
-        {menu}
-        <div className="screen">
-          <div className="screen-header">
-            <h1>All hands in</h1>
-            <p>Tap to reveal the dealer</p>
-          </div>
-
-          <div className="stack" style={{ flex: 1, justifyContent: "center" }}>
-            <DealerHandView cards={state.dealerHand} revealed={false} />
-          </div>
-
-          <button
-            className="btn btn-primary btn-block"
-            onClick={() => setState((p) => revealDealerHole(p))}
-          >
-            Flip
-          </button>
-        </div>
-      </>
-    );
-  }
-
   if (state.phase === "dealerPlaying") {
     const { total } = handTotal(state.dealerHand);
     return (
@@ -377,18 +351,30 @@ export function BlackjackGame({ settings, onMenuRestart }: Props) {
 
   // Results
   const dealerTotal = handTotal(state.dealerHand).total;
+  const dealerBust = dealerTotal > 21;
   return (
     <>
       {menu}
       <div className="screen" style={{ padding: "8px 12px" }}>
-        <div className="screen-header" style={{ marginBottom: 6 }}>
-          <div className="text-dim" style={{ fontSize: "0.8rem", letterSpacing: 2 }}>
-            DEALER · {dealerTotal}
-            {dealerTotal > 21 ? " (BUST)" : ""}
-          </div>
+        <div className="text-dim text-center" style={{ fontSize: "0.75rem", letterSpacing: 2, marginBottom: 4 }}>
+          DEALER
         </div>
 
         <DealerHandView cards={state.dealerHand} revealed={true} />
+
+        <div
+          className="text-center"
+          style={{
+            fontSize: "2rem",
+            fontWeight: 800,
+            marginTop: 10,
+            color: dealerBust ? "var(--take)" : "var(--text)",
+            letterSpacing: 1,
+          }}
+        >
+          {dealerTotal}
+          {dealerBust ? " · BUST" : ""}
+        </div>
 
         <div className="stack" style={{ marginTop: 16, flex: 1 }}>
           {state.playerHands.map((hand, idx) => (
