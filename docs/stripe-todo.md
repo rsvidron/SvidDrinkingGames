@@ -34,23 +34,39 @@ behind the `DEBUG_TOKEN` env var — they 404 when the token isn't set.
 
 Leave `DEBUG_TOKEN` unset in normal operation.
 
+## Runbook: refunding a customer
+
+Refunds are handled manually. The `charge.refunded` webhook is
+intentionally not wired up — low volume, and we'd rather eyeball each one.
+
+1. **Refund the payment** — Stripe Dashboard → Payments → find the row →
+   `⋯` → Refund. Full refund unless you're doing something bespoke.
+
+2. **Revoke access** — Supabase SQL editor:
+   ```sql
+   -- If you know the user's email:
+   delete from public.grants
+   where user_id = (select id from public.profiles where email = 'them@example.com');
+
+   -- Or, more precisely, only the grant tied to the refunded payment.
+   -- Grab `stripe_payment_id` from Stripe (starts with `pi_` or `cs_`):
+   delete from public.grants
+   where stripe_payment_id = 'pi_...';
+   ```
+
+3. **Confirm** — either query `public.grants` for that user (should return
+   0 rows for stripe-sourced grants), or ask the user to refresh and verify
+   they hit the paywall.
+
+Chargebacks (Stripe dispute) work the same way — Stripe removes the funds
+on their end, you remove the grant. Watch for `charge.dispute.created`
+emails from Stripe.
+
 ## What's left
 
-Ordered by priority. Nothing here blocks shipping — the current flow works —
-but these are the follow-ups.
+Follow-ups. None blocks shipping.
 
-### 1. Refund / chargeback revocation (revenue-leak risk)
-
-The webhook only handles `checkout.session.completed`. If we refund a
-purchase (or the customer disputes it), the `grants` row stays active — the
-user keeps their access even though we gave the money back.
-
-Fix: subscribe to `charge.refunded` and `charge.dispute.created` in the
-Stripe webhook config, look up the grant by `stripe_payment_id`, and delete
-(or set `expires_at = now()`) so `useAccess` bounces them back to the
-paywall. Right now we manually delete rows in Supabase after each refund.
-
-### 2. Webhook idempotency (double-grant risk)
+### 1. Webhook idempotency (double-grant risk)
 
 Stripe retries webhooks on 5xx / timeout. If our handler is slow and the
 first response times out, Stripe delivers the same event again and we'd
@@ -60,7 +76,7 @@ Fix: add a unique index on `grants.stripe_payment_id`, then either
 `on conflict do nothing` on insert or check-then-insert. Low-probability in
 practice but cheap to add.
 
-### 3. Reuse a single Stripe Customer per user (polish)
+### 2. Reuse a single Stripe Customer per user (polish)
 
 Right now every checkout passes `customer_email` and Stripe creates a fresh
 Customer object each time — one user with three purchases shows up as three
@@ -69,7 +85,7 @@ separate Customers in the Stripe dashboard.
 Fix: add `stripe_customer_id` to `public.profiles`, look up or create at
 checkout time, pass `customer: customerId` to `sessions.create`.
 
-### 4. Tax / receipts (polish)
+### 3. Tax / receipts (polish)
 
 - Stripe Tax isn't enabled — we're not calculating sales tax on the $20
   Lifetime. Check whether it matters for your state/scale before enabling.
