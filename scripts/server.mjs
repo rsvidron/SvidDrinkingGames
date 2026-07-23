@@ -213,13 +213,48 @@ async function handleCheckoutCreate(req, res) {
     req.headers.origin ||
     (req.headers.host ? `https://${req.headers.host}` : "https://drinking.svidnet.com");
 
+  // Look up or create the user's Stripe Customer so every purchase from
+  // this user lives on a single Customer object in the Stripe dashboard.
+  const { data: profile, error: profileErr } = await supabaseAdmin
+    .from("profiles")
+    .select("stripe_customer_id")
+    .eq("id", user.id)
+    .single();
+  if (profileErr) {
+    console.error("[stripe] profile lookup failed", profileErr);
+    return jsonResponse(res, 500, { error: "profile_lookup_failed" });
+  }
+
+  let customerId = profile?.stripe_customer_id ?? null;
+  if (!customerId) {
+    try {
+      const customer = await stripe.customers.create({
+        email: user.email,
+        metadata: { user_id: user.id },
+      });
+      customerId = customer.id;
+      const { error: updateErr } = await supabaseAdmin
+        .from("profiles")
+        .update({ stripe_customer_id: customerId })
+        .eq("id", user.id);
+      if (updateErr) {
+        // Not fatal — checkout can still proceed with the fresh customer id.
+        // Next checkout would just mint another. Log and move on.
+        console.warn("[stripe] failed to store stripe_customer_id", updateErr);
+      }
+    } catch (err) {
+      console.error("[stripe] customer.create failed", err);
+      return jsonResponse(res, 500, { error: "stripe_error" });
+    }
+  }
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
+      customer: customerId,
       client_reference_id: user.id,
-      customer_email: user.email,
       metadata: { user_id: user.id, plan },
       success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout/cancel`,
@@ -266,18 +301,32 @@ async function handleStripeWebhook(req, res) {
     const expiresAt =
       plan === "day_pass" ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null;
 
-    const { error: insertErr } = await supabaseAdmin.from("grants").insert({
-      user_id: userId,
-      type,
-      expires_at: expiresAt,
-      source: "stripe",
-      stripe_payment_id: paymentId,
-    });
+    // Upsert on stripe_payment_id so Stripe webhook retries can't double-grant.
+    // The unique constraint on grants.stripe_payment_id (migration 0003) makes
+    // the retry a no-op; ignoreDuplicates keeps the response 200 so Stripe
+    // stops retrying.
+    const { data: inserted, error: insertErr } = await supabaseAdmin
+      .from("grants")
+      .upsert(
+        {
+          user_id: userId,
+          type,
+          expires_at: expiresAt,
+          source: "stripe",
+          stripe_payment_id: paymentId,
+        },
+        { onConflict: "stripe_payment_id", ignoreDuplicates: true }
+      )
+      .select();
     if (insertErr) {
-      console.error("[stripe] grant insert failed", insertErr);
+      console.error("[stripe] grant upsert failed", insertErr);
       return jsonResponse(res, 500, { error: "grant_insert_failed" });
     }
-    console.log(`[stripe] granted ${type} to user ${userId}`);
+    if (inserted && inserted.length > 0) {
+      console.log(`[stripe] granted ${type} to user ${userId}`);
+    } else {
+      console.log(`[stripe] duplicate webhook for payment ${paymentId}, ignored`);
+    }
   }
 
   jsonResponse(res, 200, { received: true });
