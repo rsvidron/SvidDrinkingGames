@@ -1,95 +1,85 @@
-# Stripe checkout — outstanding issue
+# Stripe — status & remaining work
 
-Phase 3 (Stripe payments) is **built but not verified end-to-end** yet.
-Everything is wired up, we just hit an error on the first live-mode
-test purchase and haven't diagnosed it.
+## Status: ✅ Phase 3 verified end-to-end (2026-07-23)
 
-## Current status
+Real live-mode payments succeed for both plans:
 
-- ✅ Stripe products created (Day Pass $4.99, Lifetime $20)
-- ✅ Webhook endpoint created in Stripe pointing at
-  `https://drinking.svidnet.com/webhooks/stripe`
-- ✅ Railway env vars set (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
-  `STRIPE_PRICE_DAY_PASS`, `STRIPE_PRICE_LIFETIME`,
-  `SUPABASE_SERVICE_ROLE_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
-- ✅ Server code: `POST /api/checkout/create`,
-  `POST /webhooks/stripe`, debug endpoints
-- ✅ Frontend code: Paywall wired to `/api/checkout/create`, redirects
-  to Stripe URL. `/checkout/success` polls access refresh. `/checkout/cancel`
-- ❌ **Test purchase failed** with:
-  - Client-side: 500 from `/api/checkout/create`
-  - Server returned: `{ error: "stripe_error" }`
+- Day Pass ($4.99) → `grants` row with `expires_at ≈ now + 24h`, `source = 'stripe'`
+- Lifetime ($20) → `grants` row with `expires_at IS NULL`, `source = 'stripe'`
+- `checkout.session.completed` webhook fires, signature verifies, grant lands within ~1s
+- Frontend `/checkout/success` poll picks up the grant within ~2-4s and auto-navigates to the picker
 
-`stripe_error` means the Stripe SDK threw when we called
-`stripe.checkout.sessions.create`. The actual exception is in the
-server logs but we couldn't see them.
+### What tripped us up
 
-## Most likely root cause
+The env vars `STRIPE_PRICE_DAY_PASS` / `STRIPE_PRICE_LIFETIME` were originally
+set to Stripe **product** IDs (`prod_…`) instead of **price** IDs (`price_…`).
+`stripe.checkout.sessions.create` failed with `No such price: 'prod_…'`, which
+the code masked as the generic `stripe_error` label.
 
-**Test/live mode mismatch.** If any single one of these is in a different mode:
-- `STRIPE_SECRET_KEY` (starts with `sk_live_` vs `sk_test_`)
-- Both price IDs (created in live mode products vs test mode products)
-- Webhook signing secret (live-mode webhook vs test-mode webhook)
+`/api/debug/diagnose` spotted this in one hit — retrieving the "price" via
+`stripe.prices.retrieve(id)` returned an error with the offending prefix
+visible. If a Stripe issue ever recurs, that endpoint is the first move (see
+below).
 
-...then Stripe returns "No such price" or "Invalid API Key".
+## Debug tooling
 
-Since the Stripe account is fully activated (live-mode enabled), and
-the price IDs are from live-mode products, the secret key MUST be a
-`sk_live_...` key. Verify.
+Two endpoints in [`scripts/server.mjs`](../scripts/server.mjs) are gated
+behind the `DEBUG_TOKEN` env var — they 404 when the token isn't set.
 
-## How to diagnose (do this to resume)
+- `GET /api/debug/diagnose?token=…` — env-var presence + first 6 chars,
+  Stripe account id + inferred mode, both price IDs looked up via real
+  Stripe API calls, Supabase reachability
+- `GET /api/debug/logs?token=…&tail=N` — last N lines of the in-memory
+  ring buffer (default 200, max 500)
 
-1. **Set `DEBUG_TOKEN` env var on Railway** (any random string), let it redeploy.
+Leave `DEBUG_TOKEN` unset in normal operation.
 
-2. In a browser, hit:
-   ```
-   https://drinking.svidnet.com/api/debug/diagnose?token=YOUR_TOKEN
-   ```
+## What's left
 
-3. The JSON response tells you:
-   - Every env var's presence + first 6 chars (so you can confirm `sk_live_...` vs `sk_test_...`)
-   - Stripe account_id + inferred mode
-   - Both price IDs — retrieved with real Stripe API calls. Shows `active`, `unit_amount`, `livemode`, or an error like `"No such price: 'price_xxx'"`.
-   - Supabase reachability
+Ordered by priority. Nothing here blocks shipping — the current flow works —
+but these are the follow-ups.
 
-   Diagnose result will spot the mismatch immediately.
+### 1. Refund / chargeback revocation (revenue-leak risk)
 
-4. Alternatively, hit:
-   ```
-   https://drinking.svidnet.com/api/debug/logs?token=YOUR_TOKEN&tail=100
-   ```
-   for raw server logs (last 100 lines). Look for `[stripe] checkout.session.create failed` with the underlying error message.
+The webhook only handles `checkout.session.completed`. If we refund a
+purchase (or the customer disputes it), the `grants` row stays active — the
+user keeps their access even though we gave the money back.
 
-## Once mismatch is fixed
+Fix: subscribe to `charge.refunded` and `charge.dispute.created` in the
+Stripe webhook config, look up the grant by `stripe_payment_id`, and delete
+(or set `expires_at = now()`) so `useAccess` bounces them back to the
+paywall. Right now we manually delete rows in Supabase after each refund.
 
-Retest the flow:
+### 2. Webhook idempotency (double-grant risk)
 
-1. Log in as a user without an active grant (delete grants if needed)
-2. Paywall → **Get 24-hour pass**
-3. Should redirect to `checkout.stripe.com/...`
-4. Live test: use a real card + Stripe dashboard refund after; or flip everything to Test mode + use `4242 4242 4242 4242` (any future exp, any CVC, any ZIP)
-5. On success, redirected to `/checkout/success` → should activate within ~2-4s → auto-navigate to game picker
-6. Verify server-side:
-   ```sql
-   select * from public.grants order by created_at desc limit 3;
-   ```
-7. Verify Stripe webhook delivered:
-   Stripe Dashboard → Developers → Webhooks → your endpoint → Event log → look for `checkout.session.completed` with green 200 response
+Stripe retries webhooks on 5xx / timeout. If our handler is slow and the
+first response times out, Stripe delivers the same event again and we'd
+insert a duplicate `grants` row.
 
-## Code pointers (if the fix needs code changes)
+Fix: add a unique index on `grants.stripe_payment_id`, then either
+`on conflict do nothing` on insert or check-then-insert. Low-probability in
+practice but cheap to add.
 
-- Checkout create handler: [`scripts/server.mjs`](../scripts/server.mjs), `handleCheckoutCreate`
-- Webhook handler: same file, `handleStripeWebhook`
-- Frontend paywall button wiring: [`src/pages/Paywall.tsx`](../src/pages/Paywall.tsx), `startCheckout`
+### 3. Reuse a single Stripe Customer per user (polish)
+
+Right now every checkout passes `customer_email` and Stripe creates a fresh
+Customer object each time — one user with three purchases shows up as three
+separate Customers in the Stripe dashboard.
+
+Fix: add `stripe_customer_id` to `public.profiles`, look up or create at
+checkout time, pass `customer: customerId` to `sessions.create`.
+
+### 4. Tax / receipts (polish)
+
+- Stripe Tax isn't enabled — we're not calculating sales tax on the $20
+  Lifetime. Check whether it matters for your state/scale before enabling.
+- Receipt emails: default-on in Stripe settings; verify under
+  Settings → Emails → "Successful payments".
+
+## Code pointers
+
+- Checkout create: [`scripts/server.mjs`](../scripts/server.mjs) → `handleCheckoutCreate`
+- Webhook handler: same file → `handleStripeWebhook`
+- Debug endpoints: same file → `handleDebugDiagnose` / `handleDebugLogs`
+- Paywall button wiring: [`src/pages/Paywall.tsx`](../src/pages/Paywall.tsx) → `startCheckout`
 - Success poll: [`src/pages/CheckoutSuccess.tsx`](../src/pages/CheckoutSuccess.tsx)
-- Debug endpoint: `scripts/server.mjs`, `handleDebugDiagnose` / `handleDebugLogs`
-
-## After Stripe works
-
-- Manually test both plans (day pass + lifetime)
-- Verify day-pass grants expire at `now() + 24h` and get denied after
-- Verify lifetime grants have `expires_at = null`
-- Test the refund path once (Stripe → Payments → refund) — grants
-  don't auto-revoke on refund yet; may want a webhook for
-  `charge.refunded` to expire the grant. Punt to a future phase.
-</content>
