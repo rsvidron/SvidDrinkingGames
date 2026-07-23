@@ -2,6 +2,7 @@ import { useState } from "react";
 import { GameMenu } from "../../components/GameMenu";
 import { PlayingCard } from "../../components/PlayingCard";
 import {
+  advancePlayer,
   beginPlayerTurn,
   dealHand,
   dealerPlay,
@@ -179,9 +180,14 @@ export function BlackjackGame({ settings, onMenuRestart }: Props) {
     const activeName = state.players[state.activePlayerIdx].name;
     const activeHand = state.playerHands[state.activePlayerIdx];
     const { total, soft } = handTotal(activeHand.cards);
-    const canHit = activeHand.status === "playing" && total < 21;
-    const canDouble =
-      state.allowDouble && activeHand.status === "playing" && activeHand.cards.length === 2;
+    const isActive = activeHand.status === "playing";
+    const canHit = isActive && total < 21;
+    const canDouble = state.allowDouble && isActive && activeHand.cards.length === 2;
+
+    // Outcome banner shown when the hand is settled (blackjack / bust / stand).
+    // The player taps "Pass phone" to advance.
+    const outcome = handOutcomeBanner(activeHand.status, total);
+
     return (
       <>
         {menu}
@@ -196,9 +202,10 @@ export function BlackjackGame({ settings, onMenuRestart }: Props) {
 
           <div className="text-dim text-center" style={{ margin: "16px 0 8px" }}>
             {activeName} · bet {activeHand.bet}
+            {activeHand.doubled ? " (doubled)" : ""}
           </div>
 
-          <PlayerHandView hand={activeHand} />
+          <PlayerHandView hand={activeHand} highlightColor={outcome?.borderColor} />
 
           <div
             className="text-center"
@@ -208,39 +215,81 @@ export function BlackjackGame({ settings, onMenuRestart }: Props) {
             {soft && total <= 21 ? " (soft)" : ""}
           </div>
 
+          {outcome && (
+            <div
+              className="card-panel text-center"
+              style={{
+                marginTop: 12,
+                borderColor: outcome.borderColor,
+                borderWidth: 2,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "1.6rem",
+                  fontWeight: 800,
+                  color: outcome.color,
+                  letterSpacing: 1,
+                }}
+              >
+                {outcome.title}
+              </div>
+              <div className="text-dim" style={{ marginTop: 4, fontSize: "0.9rem" }}>
+                {outcome.subtitle}
+              </div>
+            </div>
+          )}
+
           <div className="spacer" />
 
           <div className="stack">
-            <div className="row" style={{ gap: 8 }}>
+            {isActive ? (
+              <>
+                <div className="row" style={{ gap: 8 }}>
+                  <button
+                    className="btn btn-primary"
+                    style={{ flex: 1 }}
+                    onClick={() => setState((p) => playerHit(p))}
+                    disabled={!canHit}
+                  >
+                    Hit
+                  </button>
+                  <button
+                    className="btn"
+                    style={{
+                      flex: 1,
+                      background: "var(--accent-2)",
+                      borderColor: "var(--accent-2)",
+                      color: "#04211d",
+                      fontWeight: 700,
+                    }}
+                    onClick={() => setState((p) => playerStand(p))}
+                  >
+                    Stand
+                  </button>
+                </div>
+                {state.allowDouble && (
+                  <button
+                    className="btn btn-block"
+                    onClick={() => setState((p) => playerDouble(p))}
+                    disabled={!canDouble}
+                    style={{
+                      background: canDouble ? "var(--gold)" : undefined,
+                      borderColor: canDouble ? "var(--gold)" : undefined,
+                      color: canDouble ? "#3a2c00" : undefined,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Double ({activeHand.bet * 2})
+                  </button>
+                )}
+              </>
+            ) : (
               <button
-                className="btn btn-primary"
-                style={{ flex: 1 }}
-                onClick={() => setState((p) => playerHit(p))}
-                disabled={!canHit}
+                className="btn btn-primary btn-block"
+                onClick={() => setState((p) => advancePlayer(p))}
               >
-                Hit
-              </button>
-              <button
-                className="btn"
-                style={{ flex: 1, background: "var(--accent-2)", borderColor: "var(--accent-2)", color: "#04211d", fontWeight: 700 }}
-                onClick={() => setState((p) => playerStand(p))}
-              >
-                Stand
-              </button>
-            </div>
-            {state.allowDouble && (
-              <button
-                className="btn btn-block"
-                onClick={() => setState((p) => playerDouble(p))}
-                disabled={!canDouble}
-                style={{
-                  background: canDouble ? "var(--gold)" : undefined,
-                  borderColor: canDouble ? "var(--gold)" : undefined,
-                  color: canDouble ? "#3a2c00" : undefined,
-                  fontWeight: 700,
-                }}
-              >
-                Double ({activeHand.bet * 2})
+                Pass phone
               </button>
             )}
           </div>
@@ -340,14 +389,62 @@ function DealerHandView({ cards, revealed }: { cards: Card[]; revealed: boolean 
   );
 }
 
-function PlayerHandView({ hand }: { hand: PlayerHand }) {
+function PlayerHandView({
+  hand,
+  highlightColor,
+}: {
+  hand: PlayerHand;
+  highlightColor?: string;
+}) {
   return (
-    <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        gap: 8,
+        flexWrap: "wrap",
+        padding: highlightColor ? 4 : 0,
+        borderRadius: 12,
+        border: highlightColor ? `2px solid ${highlightColor}` : "2px solid transparent",
+        transition: "border-color 0.15s ease",
+      }}
+    >
       {hand.cards.map((c) => (
         <PlayingCard key={c.id} card={c} size="md" />
       ))}
     </div>
   );
+}
+
+function handOutcomeBanner(
+  status: PlayerHand["status"],
+  total: number
+): { title: string; subtitle: string; color: string; borderColor: string } | null {
+  if (status === "blackjack") {
+    return {
+      title: "BLACKJACK!",
+      subtitle: "Natural 21 — you win at the blackjack payout",
+      color: "var(--gold)",
+      borderColor: "var(--gold)",
+    };
+  }
+  if (status === "busted") {
+    return {
+      title: "BUSTED",
+      subtitle: `${total} — you lose your bet, drink up`,
+      color: "var(--take)",
+      borderColor: "var(--take)",
+    };
+  }
+  if (status === "stood") {
+    return {
+      title: `Stood at ${total}`,
+      subtitle: "Waiting on the dealer",
+      color: "var(--accent-2)",
+      borderColor: "var(--accent-2)",
+    };
+  }
+  return null;
 }
 
 function PlayerResultRow({

@@ -75,7 +75,9 @@ export function initBlackjack(settings: BlackjackSettings): BlackjackState {
   };
 }
 
-/** Deal a new hand: 2 cards each to players and dealer (standard alternating order). */
+/** Deal a new hand: 2 cards each to players and dealer (standard alternating order).
+ *  Naturals are NOT auto-marked here — the player still gets a "reveal" moment on
+ *  their turn so they can see they were dealt blackjack. */
 export function dealHand(state: BlackjackState): BlackjackState {
   const shoe = state.shoe.length < RESHUFFLE_THRESHOLD ? buildShoe() : [...state.shoe];
   const hands: PlayerHand[] = state.players.map(() => ({
@@ -91,39 +93,27 @@ export function dealHand(state: BlackjackState): BlackjackState {
     }
     dealerHand.push(shoe.shift()!);
   }
-  // Naturals skip taking a turn.
-  for (const hand of hands) {
-    if (isBlackjack(hand.cards)) hand.status = "blackjack";
-  }
-  const activePlayerIdx = firstPending(hands);
-  const phase = activePlayerIdx === -1 ? "dealerReveal" : "pass";
   return {
     ...state,
     shoe,
     playerHands: hands,
     dealerHand,
     dealerRevealed: false,
-    activePlayerIdx: activePlayerIdx === -1 ? 0 : activePlayerIdx,
-    phase,
+    activePlayerIdx: 0,
+    phase: "pass",
     results: null,
   };
 }
 
-function firstPending(hands: PlayerHand[]): number {
-  for (let i = 0; i < hands.length; i += 1) {
-    if (hands[i].status === "pending") return i;
-  }
-  return -1;
-}
-
-/** Player commits their bet (from the "pass to X" screen) and reveals their hand. */
+/** Player commits their bet (from the "pass to X" screen) and reveals their hand.
+ *  A natural 21 is detected here and marked as "blackjack" — the UI shows the
+ *  celebration screen and the player taps "Pass phone" when ready. */
 export function beginPlayerTurn(state: BlackjackState): BlackjackState {
   const hands = [...state.playerHands];
-  const bet = hands[state.activePlayerIdx].bet;
-  hands[state.activePlayerIdx] = {
-    ...hands[state.activePlayerIdx],
-    status: "playing",
-  };
+  const current = hands[state.activePlayerIdx];
+  const bet = current.bet;
+  const nextStatus = isBlackjack(current.cards) ? "blackjack" : "playing";
+  hands[state.activePlayerIdx] = { ...current, status: nextStatus };
   return { ...state, playerHands: hands, phase: "playing", lastBet: bet };
 }
 
@@ -135,6 +125,8 @@ export function setBet(state: BlackjackState, bet: number): BlackjackState {
   return { ...state, playerHands: hands };
 }
 
+/** Take a hit. Doesn't advance — the UI shows the result (including bust)
+ *  and the player taps "Pass phone" to hand off. */
 export function playerHit(state: BlackjackState): BlackjackState {
   const shoe = [...state.shoe];
   const card = shoe.shift()!;
@@ -145,16 +137,19 @@ export function playerHit(state: BlackjackState): BlackjackState {
   if (total > 21) hand.status = "busted";
   else if (total === 21) hand.status = "stood"; // auto-stand on 21
   hands[state.activePlayerIdx] = hand;
-  return advanceIfHandDone({ ...state, playerHands: hands, shoe });
+  return { ...state, playerHands: hands, shoe };
 }
 
+/** Stand. Doesn't advance — the UI shows STOOD + total and the player taps
+ *  "Pass phone" to hand off. */
 export function playerStand(state: BlackjackState): BlackjackState {
   const hands = [...state.playerHands];
   hands[state.activePlayerIdx] = { ...hands[state.activePlayerIdx], status: "stood" };
-  return advanceIfHandDone({ ...state, playerHands: hands });
+  return { ...state, playerHands: hands };
 }
 
-/** Double: bet doubles (capped at 2× maxBet), one card, auto-stand or bust. */
+/** Double: bet doubles (capped at 2× maxBet), one card, auto-stand or bust.
+ *  Doesn't advance — same reveal-then-tap pattern as hit/stand. */
 export function playerDouble(state: BlackjackState): BlackjackState {
   const shoe = [...state.shoe];
   const card = shoe.shift()!;
@@ -166,12 +161,13 @@ export function playerDouble(state: BlackjackState): BlackjackState {
   const { total } = handTotal(hand.cards);
   hand.status = total > 21 ? "busted" : "stood";
   hands[state.activePlayerIdx] = hand;
-  return advanceIfHandDone({ ...state, playerHands: hands, shoe });
+  return { ...state, playerHands: hands, shoe };
 }
 
-function advanceIfHandDone(state: BlackjackState): BlackjackState {
-  const currentHand = state.playerHands[state.activePlayerIdx];
-  if (currentHand.status === "playing") return state; // still deciding
+/** Explicit "pass phone" — called from the UI when the player has finished
+ *  looking at their bust/stand/blackjack outcome. Moves to the next pending
+ *  player, or transitions to the dealer phase if everyone's done. */
+export function advancePlayer(state: BlackjackState): BlackjackState {
   for (let i = state.activePlayerIdx + 1; i < state.playerHands.length; i += 1) {
     if (state.playerHands[i].status === "pending") {
       return { ...state, activePlayerIdx: i, phase: "pass" };
